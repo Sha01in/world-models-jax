@@ -103,4 +103,4 @@ def collect_data():
     print(f"\nData collection complete. Total Attempts: {attempts}")
 
 if __name__ == "__main__":
-    collect_data()
+    collect_data()  

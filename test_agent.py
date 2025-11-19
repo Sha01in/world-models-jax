@@ -100,6 +100,10 @@ def main():
             # 2. Controller
             action_jax = get_step_action(z, h)
             action = np.array(action_jax)
+            # --- TELEMETRY ---
+            if t % 20 == 0:
+                print(f"T={t} | Gas: {action[1]:.3f} | Brake: {action[2]:.3f} | Z-Norm: {jnp.linalg.norm(z):.2f}")
+
             
             # 3. Step Env
             obs, reward, terminated, truncated, _ = env.step(action)

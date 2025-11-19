@@ -94,4 +94,4 @@ def collect_data():
     print("(Target is > 5-10% to give the RNN something to learn)")
 
 if __name__ == "__main__":
-    collect_data()
+    collect_data() 
