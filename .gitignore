@@ -30,6 +30,10 @@ Thumbs.db
 *.log
 .ipynb_checkpoints/
 
+# --- Media Artifacts ---
+videos/
+*.mp4
+
 # --- Documentation ---
 # Keep pyproject.toml and uv.lock so others can reproduce your env
 # !pyproject.toml
