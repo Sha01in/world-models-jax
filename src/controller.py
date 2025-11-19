@@ -12,17 +12,13 @@ def get_action(params, z, h):
     inp = jnp.concatenate([z, h])
     logits = jnp.dot(W, inp) + b
     
-    # 1. Steering: Normal (-1 to 1)
+    # 1. Steering: Full Range [-1, 1]
     steer = jnp.tanh(logits[0])
     
-    # 2. Gas: CLAMPED [0.4 to 0.8]
-    # (tanh+1)/2 is 0..1. 
-    # We scale it to 0..0.4 and add 0.4 base.
-    # This ensures the car NEVER stops moving.
-    raw_gas = (jnp.tanh(logits[1]) + 1) / 2.0
-    gas = raw_gas * 0.4 + 0.4
+    # 2. Gas: [0, 1]
+    gas = jax.nn.sigmoid(logits[1])
     
-    # 3. Brake: Forced to 0.0 to prevent conflicts
-    brake = jnp.array(0.0)
+    # 3. Brake: [0, 1]
+    brake = jax.nn.sigmoid(logits[2])
     
     return jnp.stack([steer, gas, brake])

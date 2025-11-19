@@ -13,9 +13,11 @@ LATENT_DIM = 32
 OUTPUT_DIR = "data/series"
 VAE_PATH = "checkpoints/vae.eqx"
 
-# 1. Load BOTH datasets (Good + Bad)
+# 1. Load ALL datasets (Good + Bad + Random + Iterative)
 DATA_PATTERN_GOOD = "data/rollouts/*.npz"
 DATA_PATTERN_BAD = "data/rollouts_bad/*.npz"
+DATA_PATTERN_RANDOM = "data/rollouts_random/*.npz"
+DATA_PATTERN_ITERATIVE = "data/rollouts_iterative/*.npz"
 
 def process_data():
     if not os.path.exists(OUTPUT_DIR):
@@ -44,12 +46,15 @@ def process_data():
     # Combine file lists
     files_good = glob.glob(DATA_PATTERN_GOOD)
     files_bad = glob.glob(DATA_PATTERN_BAD)
-    files = files_good + files_bad
+    files_random = glob.glob(DATA_PATTERN_RANDOM)
+    files_iterative = glob.glob(DATA_PATTERN_ITERATIVE)
+    
+    files = files_good + files_bad + files_random + files_iterative
     
     # Shuffle to mix them up during processing (optional but good practice)
     np.random.shuffle(files)
 
-    print(f"Processing {len(files)} episodes (Mixed Good/Bad + Mirroring)...")
+    print(f"Processing {len(files)} episodes (Good+Bad+Random+Iterative + Mirroring)...")
 
     for i, f in enumerate(tqdm(files)):
         try:
