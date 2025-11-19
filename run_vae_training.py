@@ -2,7 +2,7 @@ import numpy as np
 import glob
 import os
 import equinox as eqx
-from train_vae import train_vae  # Importing the logic we wrote earlier
+from train_vae import train_vae
 
 DATA_PATTERN = "data/rollouts/*.npz"
 CHECKPOINT_DIR = "checkpoints"
@@ -12,40 +12,39 @@ def load_data():
     files = glob.glob(DATA_PATTERN)
     print(f"Found {len(files)} episode files.")
     
-    all_obs = []
+    # Pre-allocate the array to avoid memory fragmentation
+    # 200 episodes * 1000 steps = 200,000 frames
+    # Shape: (Total, 3, 64, 64)
+    total_frames = len(files) * 1000
+    dataset = np.empty((total_frames, 3, 64, 64), dtype=np.uint8)
     
-    print("Loading data into memory...")
+    print("Loading data into memory (uint8)...")
+    idx = 0
     for f in files:
         with np.load(f) as data:
-            # Extract observations
-            obs = data['obs'] # Shape: (T, 64, 64, 3)
-            all_obs.append(obs)
+            obs = data['obs'] # (1000, 64, 64, 3)
             
-    # Concatenate into one big array
-    # Shape: (Total_Frames, 64, 64, 3)
-    dataset = np.concatenate(all_obs, axis=0)
+            # Transpose to (1000, 3, 64, 64)
+            obs = np.transpose(obs, (0, 3, 1, 2))
+            
+            # Insert directly into pre-allocated array
+            dataset[idx : idx + len(obs)] = obs
+            idx += len(obs)
     
-    # 1. Convert to Float32 (0.0 to 1.0)
-    dataset = dataset.astype(np.float32) / 255.0
-    
-    # 2. Transpose to Channel-First format for JAX/Equinox
-    # Current: (N, H, W, C) -> (N, 64, 64, 3)
-    # Target:  (N, C, H, W) -> (N, 3, 64, 64)
-    dataset = np.transpose(dataset, (0, 3, 1, 2))
-    
-    print(f"Dataset Shape: {dataset.shape} | Size: {dataset.nbytes / 1e9:.2f} GB")
+    # Trim in case some files had fewer frames
+    dataset = dataset[:idx]
+            
+    print(f"Dataset Shape: {dataset.shape}")
+    print(f"RAM Usage: {dataset.nbytes / 1e9:.2f} GB (uint8)")
     return dataset
 
 def main():
-    # 1. Prepare Data
     data = load_data()
     
-    # 2. Train
-    # We use more epochs since we have real data now
     print("Starting training...")
+    # Note: data is now uint8 (0-255), train_vae must handle the conversion
     trained_model = train_vae(data, epochs=10) 
     
-    # 3. Save
     if not os.path.exists(CHECKPOINT_DIR):
         os.makedirs(CHECKPOINT_DIR)
         
