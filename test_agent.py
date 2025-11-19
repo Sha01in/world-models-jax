@@ -47,92 +47,91 @@ def main():
     
     # Inference Functions
     @jax.jit
-    def encode(img):
-        # Input: (64, 64, 3)
-        # Output: (32,)
-        
-        # 1. Normalize and Transpose to (3, 64, 64)
+    def encode_and_recon(img):
         x = jnp.array(img, dtype=jnp.float32) / 255.0
         x = jnp.transpose(x, (2, 0, 1))
-        
         # DO NOT expand_dims. Pass single image directly to VAE.
-        _, mu, _ = vae(x, key=jax.random.PRNGKey(0))
-        
-        return mu # Returns (32,) directly
-        
+        recon, mu, _ = vae(x, key=jax.random.PRNGKey(0))
+        return mu, recon
+
     @jax.jit
     def get_step_action(z, h):
         return get_action(controller_params, z, h)
 
     @jax.jit
     def rnn_next(z, a, h, c):
-        # We need the RNN to update the hidden state 'h' and 'c'
-        # The RNN expects (Batch, Input), so we expand dims
         rnn_in = jnp.concatenate([z, a], axis=0)
         _, (h_new, c_new) = rnn(rnn_in, (h, c))
         return h_new, c_new
 
-    # Setup Environment
     env = gym.make("CarRacing-v3", render_mode="rgb_array")
-    
-    if RENDER and not os.path.exists(VIDEO_DIR):
+    if not os.path.exists(VIDEO_DIR):
         os.makedirs(VIDEO_DIR)
 
-    print(f"Testing Agent for {NUM_EPISODES} episodes...")
+    print(f"Testing Agent (With Warmup Phase)...")
 
-    for episode in range(NUM_EPISODES):
-        obs, _ = env.reset()
+    # Just 1 episode for the test
+    obs, _ = env.reset()
+    
+    # --- FIX: Initialize variables before the loop ---
+    total_reward = 0
+    h = jnp.zeros(HIDDEN_SIZE)
+    c = jnp.zeros(HIDDEN_SIZE)
+    frames_combined = []
+    
+    for t in range(1000):
+        obs_small = cv2.resize(obs, (64, 64))
         
-        h = jnp.zeros(HIDDEN_SIZE)
-        c = jnp.zeros(HIDDEN_SIZE)
+        # 1. Vision + Reconstruction
+        z, recon_jax = encode_and_recon(obs_small)
         
-        total_reward = 0
-        frames = []
+        # Video recording logic
+        recon_img = jnp.transpose(recon_jax, (1, 2, 0))
+        recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
+        recon_np = np.array(recon_img)
+        combined = np.hstack((obs_small, recon_np))
+        frames_combined.append(combined)
         
-        for t in range(1000):
-            if RENDER and episode == 0:
-                frames.append(obs)
-            
-            # 1. Vision (Resize -> VAE)
-            obs_small = cv2.resize(obs, (64, 64))
-            z = encode(obs_small)
-            
-            # 2. Controller
+        # --- WARMUP PHASE (The Zoom Fix) ---
+        if t < 50:
+            # Force straight driving during camera zoom
+            action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
+            # Create JAX version for RNN update
+            action_jax = jnp.array(action)
+        else:
+            # Let the Brain drive
             action_jax = get_step_action(z, h)
             action = np.array(action_jax)
-            # --- TELEMETRY ---
-            if t % 20 == 0:
-                print(f"T={t} | Gas: {action[1]:.3f} | Brake: {action[2]:.3f} | Z-Norm: {jnp.linalg.norm(z):.2f}")
-
+        # ----------------------------------
             
-            # 3. Step Env
-            obs, reward, terminated, truncated, _ = env.step(action)
-            total_reward += reward
-            
-            # 4. Update Memory
-            h, c = rnn_next(z, action_jax, h, c)
-            
-            if terminated or truncated:
-                break
+        if t % 20 == 0:
+            # Added Steer (index 0) to the print
+            print(f"T={t} | Steer: {action[0]:.3f} | Gas: {action[1]:.3f} | Z-Norm: {jnp.linalg.norm(z):.2f}")
+        # -
         
-        print(f"Episode {episode+1}: Score = {total_reward:.1f}")
+        # 3. Step Env
+        obs, reward, terminated, truncated, _ = env.step(action)
+        total_reward += reward
         
-        # Save Video of first episode
-        if RENDER and episode == 0:
-            height, width, layers = frames[0].shape
-            video_path = os.path.join(VIDEO_DIR, "agent_test.mp4")
-            # MP4 codec
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
-            video = cv2.VideoWriter(video_path, fourcc, 30, (width, height))
-            
-            for frame in frames:
-                # OpenCV uses BGR, Gym uses RGB
-                video.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            
-            cv2.destroyAllWindows()
-            video.release()
-            print(f"Video saved to {video_path}")
-
+        # 4. Update Memory
+        h, c = rnn_next(z, action_jax, h, c)
+        
+        if terminated or truncated:
+            break
+    
+    print(f"Final Score: {total_reward:.1f}")
+    
+    # Save Video
+    height, width, _ = frames_combined[0].shape
+    video_path = os.path.join(VIDEO_DIR, "agent_warmup_test.mp4")
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
+    video = cv2.VideoWriter(video_path, fourcc, 30, (width, height))
+    
+    for f in frames_combined:
+        video.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
+    
+    video.release()
+    print(f"Video saved to {video_path}")
     env.close()
 
 if __name__ == "__main__":
