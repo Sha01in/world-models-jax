@@ -12,13 +12,12 @@ from tqdm import tqdm
 DATA_DIR = "data/series/*.npz"
 CHECKPOINT_DIR = "checkpoints"
 MODEL_PATH = os.path.join(CHECKPOINT_DIR, "rnn.eqx")
-BATCH_SIZE = 100  # Number of sequences per batch
-SEQ_LEN = 999     # 1000 steps - 1 (since we predict next step)
+BATCH_SIZE = 100
 HIDDEN_SIZE = 256
 LATENT_DIM = 32
 ACTION_DIM = 3
 LEARNING_RATE = 1e-3
-EPOCHS = 20
+EPOCHS = 20 
 
 def load_dataset():
     files = glob.glob(DATA_DIR)
@@ -26,100 +25,97 @@ def load_dataset():
     
     all_z = []
     all_actions = []
+    all_rewards = []
+    all_dones = []
     
     for f in files:
         with np.load(f) as data:
-            # We need to sample Z from mu/logvar to train robustly
-            # For simplicity in this version, we use the mean (mu) as the input
-            # Ideally, you sample: z = mu + exp(0.5*logvar) * eps
-            mu = data['mu'] 
-            actions = data['actions']
+            all_z.append(data['mu'])
+            all_actions.append(data['actions'])
+            all_rewards.append(data['rewards'])
+            all_dones.append(data['dones'])
             
-            all_z.append(mu)
-            all_actions.append(actions)
-            
-    # Convert to big arrays
-    # Shape: (Num_Episodes, Seq_Len, Dim)
-    X_z = np.array(all_z)       # (N, 1000, 32)
-    X_action = np.array(all_actions) # (N, 1000, 3)
+    # Stack into arrays
+    # Slice to equal lengths just in case (usually 1000)
+    min_len = min([len(x) for x in all_z])
     
-    return X_z, X_action
+    X_z = np.array([x[:min_len] for x in all_z])
+    X_action = np.array([x[:min_len] for x in all_actions])
+    X_reward = np.array([x[:min_len] for x in all_rewards])
+    X_done = np.array([x[:min_len] for x in all_dones])
+    
+    return X_z, X_action, X_reward, X_done
 
-def mdn_loss_fn(model, inputs, targets, key):
-    # inputs shape: (Batch, Seq_Len, 35) -> (z_t, a_t)
-    # targets shape: (Batch, Seq_Len, 32) -> z_{t+1}
-    
-    # 1. Scan over the sequence (RNN unroll)
+def loss_fn(model, inputs, targets_z, targets_r, targets_d, key):
+    # Scan over sequence
     def step_fn(carry, x):
         hidden = carry
-        # x is (Batch, 35)
-        # We vmap the model over the batch dimension
-        (log_pi, mu, log_sigma), new_hidden = jax.vmap(model)(x, hidden)
-        return new_hidden, (log_pi, mu, log_sigma)
+        # Output includes reward and done now
+        (log_pi, mu, log_sigma, r_pred, d_pred), new_hidden = jax.vmap(model)(x, hidden)
+        return new_hidden, (log_pi, mu, log_sigma, r_pred, d_pred)
 
-    # Initial hidden state (Batch, 256)
     init_h = jax.vmap(lambda _: model.init_state())(jnp.arange(inputs.shape[0]))
+    _, (log_pi, mu, log_sigma, r_seq, d_seq) = jax.lax.scan(step_fn, init_h, jnp.transpose(inputs, (1, 0, 2)))
     
-    _, (log_pi_seq, mu_seq, log_sigma_seq) = jax.lax.scan(step_fn, init_h, jnp.transpose(inputs, (1, 0, 2)))
+    # Transpose outputs back to (Batch, Time, ...)
+    log_pi = jnp.transpose(log_pi, (1, 0, 2, 3))
+    mu = jnp.transpose(mu, (1, 0, 2, 3))
+    log_sigma = jnp.transpose(log_sigma, (1, 0, 2, 3))
+    r_seq = jnp.transpose(r_seq, (1, 0, 2)) # (B, T, 1)
+    d_seq = jnp.transpose(d_seq, (1, 0, 2)) # (B, T, 1)
     
-    # Scan output is (Seq_Len, Batch, ...), transpose back to (Batch, Seq_Len, ...)
-    log_pi = jnp.transpose(log_pi_seq, (1, 0, 2, 3))      # (B, T, K, 1)
-    mu = jnp.transpose(mu_seq, (1, 0, 2, 3))              # (B, T, K, 32)
-    log_sigma = jnp.transpose(log_sigma_seq, (1, 0, 2, 3)) # (B, T, K, 32)
-    
-    # 2. Calculate MDN Loss (Negative Log Likelihood)
-    # Target y is (B, T, 32). We need to broadcast it to K mixtures.
-    y = jnp.expand_dims(targets, axis=2) # (B, T, 1, 32)
-    
-    # Gaussian Log Prob: -0.5 * [ log(2pi) + 2*log_sigma + (y-mu)^2 / sigma^2 ]
-    # Summed over latent dimension (32) assuming diagonal covariance
+    # 1. MDN Loss (NLL)
+    y_z = jnp.expand_dims(targets_z, axis=2)
     sigma = jnp.exp(log_sigma)
-    log_prob_gauss = -0.5 * (jnp.log(2 * jnp.pi) + 2 * log_sigma + ((y - mu) / sigma) ** 2)
-    log_prob_gauss = jnp.sum(log_prob_gauss, axis=-1, keepdims=True) # Sum over D=32 -> (B, T, K, 1)
+    log_prob = -0.5 * (jnp.log(2 * jnp.pi) + 2 * log_sigma + ((y_z - mu) / sigma) ** 2)
+    log_prob = jnp.sum(log_prob, axis=-1, keepdims=True)
+    total_log_prob = jax.nn.logsumexp(log_pi + log_prob, axis=2)
+    loss_mdn = -jnp.mean(total_log_prob)
     
-    # Combine with mixture weights: log_sum_exp(log_pi + log_prob_gauss)
-    # log_pi is already log_softmax'd
-    total_log_prob = jax.nn.logsumexp(log_pi + log_prob_gauss, axis=2) # Sum over K -> (B, T, 1)
+    # 2. Reward Loss (MSE)
+    # r_seq is (B, T, 1), targets_r is (B, T) -> expand
+    targets_r_exp = jnp.expand_dims(targets_r, -1)
+    loss_reward = jnp.mean((r_seq - targets_r_exp) ** 2)
     
-    return -jnp.mean(total_log_prob)
+    # 3. Done Loss (BCE)
+    targets_d_exp = jnp.expand_dims(targets_d, -1)
+    loss_done = optax.sigmoid_binary_cross_entropy(d_seq, targets_d_exp).mean()
+    
+    # Total Loss
+    return loss_mdn + loss_reward + loss_done
 
 @eqx.filter_jit
-def make_step(model, opt_state, inputs, targets, key, optimizer):
-    loss, grads = eqx.filter_value_and_grad(mdn_loss_fn)(model, inputs, targets, key)
+def make_step(model, opt_state, inputs, tz, tr, td, key, optimizer):
+    loss, grads = eqx.filter_value_and_grad(loss_fn)(model, inputs, tz, tr, td, key)
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
     return model, opt_state, loss
 
 def train():
-    # 1. Load Data
-    # Z: (N, 1000, 32), Action: (N, 1000, 3)
-    Zs, Actions = load_dataset()
+    Zs, Actions, Rewards, Dones = load_dataset()
     
-    # Prepare Inputs and Targets
-    # Input at t: [z_t, a_t]
-    # Target at t: z_{t+1}
+    # Prepare Inputs (t) and Targets (t+1)
+    inputs_z = Zs[:, :-1, :]
+    inputs_a = Actions[:, :-1, :]
     
-    # Slice to sequence length 999
-    inputs_z = Zs[:, :-1, :]        # 0 to 998
-    inputs_a = Actions[:, :-1, :]   # 0 to 998
-    targets = Zs[:, 1:, :]          # 1 to 999
+    targets_z = Zs[:, 1:, :]
+    targets_r = Rewards[:, 1:]  # Predict Next Reward
+    targets_d = Dones[:, 1:]    # Predict Next Done
     
-    # Concatenate inputs
-    inputs = np.concatenate([inputs_z, inputs_a], axis=-1) # (N, 999, 35)
+    inputs = np.concatenate([inputs_z, inputs_a], axis=-1)
     
-    # Convert to JAX
     inputs = jnp.array(inputs)
-    targets = jnp.array(targets)
+    targets_z = jnp.array(targets_z)
+    targets_r = jnp.array(targets_r)
+    targets_d = jnp.array(targets_d, dtype=jnp.float32) # Ensure float for BCE
     
     num_samples = inputs.shape[0]
-    
-    # 2. Initialize Model
     key = jax.random.PRNGKey(42)
     model = MDNRNN(key=key)
     optimizer = optax.adam(LEARNING_RATE)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
     
-    print(f"Starting RNN training on {num_samples} sequences...")
+    print(f"Starting RNN (Dream) training on {num_samples} sequences...")
     
     steps_per_epoch = num_samples // BATCH_SIZE
     
@@ -128,25 +124,21 @@ def train():
         perms = jax.random.permutation(subkey, num_samples)
         
         epoch_loss = 0
-        
         with tqdm(range(steps_per_epoch), desc=f"Epoch {epoch+1}/{EPOCHS}", unit="batch") as pbar:
             for i in pbar:
                 idx = perms[i*BATCH_SIZE : (i+1)*BATCH_SIZE]
-                batch_in = inputs[idx]
-                batch_target = targets[idx]
-                
-                model, opt_state, loss = make_step(model, opt_state, batch_in, batch_target, key, optimizer)
-                current_loss = loss.item()
-                epoch_loss += current_loss
-                pbar.set_postfix(loss=f"{current_loss:.4f}")
+                model, opt_state, loss = make_step(
+                    model, opt_state, 
+                    inputs[idx], targets_z[idx], targets_r[idx], targets_d[idx], 
+                    key, optimizer
+                )
+                epoch_loss += loss.item()
+                pbar.set_postfix(loss=f"{loss.item():.4f}")
         
-        print(f"Epoch {epoch+1} Avg Loss: {epoch_loss/steps_per_epoch:.4f}")
-        
-        # Save every 5 epochs
+        # Save periodically
         if (epoch + 1) % 5 == 0:
             eqx.tree_serialise_leaves(MODEL_PATH, model)
             
-    # Final Save
     eqx.tree_serialise_leaves(MODEL_PATH, model)
     print("RNN Training Complete.")
 
