@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Virtual Environments (uv) ---
+.venv/
+venv/
+env/
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+
+# --- Project Data (CRITICAL) ---
+# Ignore the folder containing the 10,000 episode rollouts
+data/
+*.npz
+
+# --- Model Checkpoints ---
+# Ignore trained model weights
+checkpoints/
+*.eqx
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & Notebooks ---
+*.log
+.ipynb_checkpoints/
+
+# --- Documentation ---
+# Keep pyproject.toml and uv.lock so others can reproduce your env
+# !pyproject.toml
+# !uv.lock
