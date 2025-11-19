@@ -81,15 +81,18 @@ def loss_fn(model, inputs, targets_z, targets_r, targets_d, key):
     targets_d_exp = jnp.expand_dims(targets_d, -1)
     loss_done = optax.sigmoid_binary_cross_entropy(d_seq, targets_d_exp).mean()
     
-    # Total Loss
-    return loss_mdn + loss_reward + loss_done
+    # Total Loss with Weights
+    # We prioritize Reward/Done accuracy to fix Sim2Real gap
+    weighted_loss = (1.0 * loss_mdn) + (10.0 * loss_reward) + (10.0 * loss_done)
+    
+    return weighted_loss, (loss_mdn, loss_reward, loss_done)
 
 @eqx.filter_jit
 def make_step(model, opt_state, inputs, tz, tr, td, key, optimizer):
-    loss, grads = eqx.filter_value_and_grad(loss_fn)(model, inputs, tz, tr, td, key)
+    (loss, aux), grads = eqx.filter_value_and_grad(loss_fn, has_aux=True)(model, inputs, tz, tr, td, key)
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
-    return model, opt_state, loss
+    return model, opt_state, loss, aux
 
 def train():
     Zs, Actions, Rewards, Dones = load_dataset()
@@ -127,13 +130,16 @@ def train():
         with tqdm(range(steps_per_epoch), desc=f"Epoch {epoch+1}/{EPOCHS}", unit="batch") as pbar:
             for i in pbar:
                 idx = perms[i*BATCH_SIZE : (i+1)*BATCH_SIZE]
-                model, opt_state, loss = make_step(
+                model, opt_state, loss, (l_mdn, l_rew, l_done) = make_step(
                     model, opt_state, 
                     inputs[idx], targets_z[idx], targets_r[idx], targets_d[idx], 
                     key, optimizer
                 )
                 epoch_loss += loss.item()
-                pbar.set_postfix(loss=f"{loss.item():.4f}")
+                pbar.set_postfix(loss=f"{loss.item():.2f}", 
+                                 mdn=f"{l_mdn.item():.2f}", 
+                                 rew=f"{l_rew.item():.2f}", 
+                                 done=f"{l_done.item():.2f}")
         
         # Save periodically
         if (epoch + 1) % 5 == 0:

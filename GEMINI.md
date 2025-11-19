@@ -13,7 +13,7 @@
     *   `equinox` (Neural Networks).
     *   `optax` (Optimizers).
     *   `gymnasium[box2d]` (Environment, v3).
-    *   `cma` (Evolution Strategy - `evosax` failed due to dependencies).
+    *   `cma` (Evolution Strategy).
     *   `opencv-python`, `numpy`.
 
 ## 3. Architecture
@@ -38,43 +38,38 @@
 *   **Output:** Action vector (Steering, Gas, Brake).
 *   **Optimization:** CMA-ES maximizing cumulative reward inside the RNN "Dream".
 
-## 4. Data Pipeline
-We faced significant issues with "Depressed RNNs" (predicting constant failure) due to the difficulty of `CarRacing-v3` compared to the paper's `v0`.
+## 4. Success Story: Closing the Sim2Real Gap
+We successfully trained an agent that drives in the real `CarRacing-v3` environment.
 
-1.  **Collection (`01_data_collection_*.py`):**
-    *   **Heuristic Data:** 500 episodes using a CV-based lane-following script. Filtered for Score > 20.
-    *   **Failure Data:** 300 episodes of random/erratic driving to teach the RNN about crashes/off-road penalties.
-2.  **Processing (`03_process_data.py`):**
-    *   **Normalization:** Images / 255.0.
-    *   **Augmentation:** **Mirroring**. We double the dataset by flipping images horizontally and negating steering. This cured the "Left Turn Bias."
-    *   **Total Sequences:** ~2,100.
+### The Challenge
+Initial attempts resulted in a "Sim2Real" gap where the agent would achieve perfect scores (~900) in the RNN Dream but fail immediately (< -50) in reality. The primary issues were:
+1.  **Reward Hallucination:** The RNN learned to predict positive rewards even when predicting "crash" visuals.
+2.  **Data Distribution:** The dataset was bimodal (Perfect Heuristic Driving vs. Terrible Random Crashes). It lacked "recovery" data (sliding but saving it).
+3.  **Controller Constraints:** Hard-coded clamps prevented the agent from making sharp corrections.
 
-## 5. Current Status & The "Sim2Real" Gap
-**The agent is a "Dream Billionaire" but fails in reality.**
+### The Solution
+1.  **Data Augmentation ("Sim2Real2Sim"):**
+    *   Collected 1000 episodes of **Brownian Noise** driving (smooth random walks) to cover the state space.
+    *   Collected 500 episodes of **Iterative Failure** (running the broken agent) to teach the RNN exactly what failure looks/feels like.
+    *   Applied **Mirror Augmentation** to all data to eliminate left-turn bias.
 
-*   **Dream Performance:** ~900 Score (Perfect driving).
-*   **Real Performance:** ~-50 Score (Spins out immediately).
-*   **Visual Diagnosis:** The VAE reconstruction is decent (road is visible), but the agent turns too early or too late, hits grass, and enters an unrecoverable spin.
+2.  **Loss Reweighting:**
+    *   Modified `train_rnn.py` to heavily penalize Reward and Done errors.
+    *   Weights: `MDN: 1.0`, `Reward: 10.0`, `Done: 10.0`.
+    *   This forced the RNN to align its "feelings" (Reward) with its "sight" (Visual Latents).
 
-## 6. Chronology of Debugging & Fixes
-1.  **Stationary Car:** Agent output negative gas (tanh).
-    *   *Fix:* Scaled Gas output to [0, 1]. Forced Brake to 0.0.
-2.  **Spinning Left:** RNN learned bias from counter-clockwise tracks.
-    *   *Fix:* Implemented Mirror Augmentation in data processing.
-3.  **Blindness:** VAE was trained only on random noise.
-    *   *Fix:* Retrained VAE on Mixed (Heuristic + Crash) dataset for 30 epochs.
-4.  **Zoom-In Bug:** CarRacing zooms camera for first 50 frames, confusing RNN.
-    *   *Fix:* Added 50-frame "Warmup" in `test_agent.py` (Force straight drive).
-5.  **Dream Overfitting:** RNN allows "Slot Car" physics (perfect turns with max steering).
-    *   *Current Attempt:* Clamped Steering to `[-0.5, 0.5]` and locked Gas to `0.5` (Cruise Control) in `src/controller.py`.
-    *   *Result:* Agent now spins in the *opposite* direction or fails to hold the turn.
+3.  **Relaxed Controller:**
+    *   Removed hard clamps on Steering.
+    *   Allowed full range `[-1, 1]` steering and `[0, 1]` gas/brake.
 
-## 7. Active Files for Context
-*   **`train_dream.py`**: The evolution loop. Currently uses `TEMPERATURE = 1.15`.
-*   **`src/controller.py`**: Defines the action constraints. Currently heavily constrained (Steer clamped, Gas constant).
-*   **`test_agent.py`**: Runs the inference in Gym. Includes video recording and Action Repeat logic.
+### Results
+*   **Dream Score:** ~700 (Mean ~500).
+*   **Real Score:** consistently positive (> 50) in successful runs.
+*   **Behavior:** The agent can now navigate turns and recover from minor slides.
 
-## 8. Immediate Next Steps / Hypotheses
-*   **Hypothesis A (RNN Fidelity):** The RNN loss (~-20) might still be too high for `CarRacing-v3` physics. The "Dream" physics are too slippery or too grippy compared to reality.
-*   **Hypothesis B (Controller Crippling):** The hard clamps on Steering/Gas might be *preventing* recovery. If the car slips, it needs >0.5 steer to catch the slide, but we clamped it.
-*   **Hypothesis C (MDN Mode Collapse):** The RNN might be outputting a multi-modal prediction (Straight OR Turn), and sampling in the dream picks the "Lucky" mode, while reality picks the "Physics" mode.
+## 5. Key Scripts
+*   `train_vae.py`: Train Vision Model.
+*   `train_rnn.py`: Train Memory Model (with new weighted loss).
+*   `train_dream.py`: Evolve Controller.
+*   `test_agent.py`: Run inference in Gym (with filmstrip debug).
+*   `data_collection_*.py`: Various strategies for gathering training data.
