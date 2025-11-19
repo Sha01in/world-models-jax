@@ -49,8 +49,10 @@ Initial attempts resulted in a "Sim2Real" gap where the agent would achieve perf
 
 ### The Solution
 1.  **Data Augmentation ("Sim2Real2Sim"):**
+    *   **Parallel Data Collection:** Created parallelized scripts (`data_collection_*_parallel.py`) to speed up sampling by 16x. **Prefer these for all future collection.**
     *   Collected 1000 episodes of **Brownian Noise** driving (smooth random walks) to cover the state space.
     *   Collected 500 episodes of **Iterative Failure** (running the broken agent) to teach the RNN exactly what failure looks/feels like.
+    *   Collected 500 episodes of **Recovery Data** (Heuristic driver with random perturbations) to teach the agent how to recover from slides.
     *   Applied **Mirror Augmentation** to all data to eliminate left-turn bias.
 
 2.  **Loss Reweighting:**
@@ -63,13 +65,13 @@ Initial attempts resulted in a "Sim2Real" gap where the agent would achieve perf
     *   Allowed full range `[-1, 1]` steering and `[0, 1]` gas/brake.
 
 ### Results
-*   **Dream Score:** ~700 (Mean ~500).
+*   **Dream Score:** ~780 (Mean ~570).
 *   **Real Score:** consistently positive (> 50) in successful runs.
 *   **Behavior:** The agent can now navigate turns and recover from minor slides.
 
 ## 5. Key Scripts
 *   `train_vae.py`: Train Vision Model.
 *   `train_rnn.py`: Train Memory Model (with new weighted loss).
-*   `train_dream.py`: Evolve Controller.
-*   `test_agent.py`: Run inference in Gym (with filmstrip debug).
-*   `data_collection_*.py`: Various strategies for gathering training data.
+*   `train_dream.py`: Evolve Controller (Best reward ~800).
+*   `test_agent.py`: Run inference in Gym (with filmstrip debug and per-episode video).
+*   `data_collection_*_parallel.py`: **PREFERRED** parallelized strategies for gathering training data.

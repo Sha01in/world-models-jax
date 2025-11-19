@@ -51,14 +51,14 @@ def main():
     @jax.jit
     def rnn_next(z, a, h, c):
         rnn_in = jnp.concatenate([z, a], axis=0)
-        (log_pi, mu, log_sigma, _, _), (h_new, c_new) = rnn(rnn_in, (h, c))
+        (log_pi, mu, log_sigma, r_pred, d_pred), (h_new, c_new) = rnn(rnn_in, (h, c))
         
         # Calculate expected z (weighted average of Gaussians)
         pi = jnp.exp(log_pi)
         # mu shape: (5, 32), pi shape: (5, 1)
         expected_z = jnp.sum(pi * mu, axis=0) 
         
-        return h_new, c_new, expected_z
+        return h_new, c_new, expected_z, r_pred
 
     env = gym.make("CarRacing-v3", render_mode="rgb_array")
     if not os.path.exists(VIDEO_DIR):
@@ -81,25 +81,35 @@ def main():
         prev_expected_z = None
         total_surprise = 0.0
         
+            # Data collection for analysis
+        telemetry_data = {
+            'actions': [],
+            'rewards': [],
+            'z': [],
+            'h_norm': [],
+            'surprise': [],
+            'r_pred': []
+        }
+        
         for t in range(1000):
             obs_small = cv2.resize(obs, (64, 64))
             z, recon_jax = encode_and_recon(obs_small)
             
             # Calculate Surprise (MSE between predicted z and actual z)
+            surprise = 0.0
             if prev_expected_z is not None:
                 surprise = jnp.mean((z - prev_expected_z) ** 2)
                 total_surprise += surprise
             
-            # Record Video (Episode 1 only)
-            if episode == 0:
-                recon_img = jnp.transpose(recon_jax, (1, 2, 0))
-                recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
-                combined = np.hstack((obs_small, np.array(recon_img)))
-                frames_combined.append(combined)
-                
-                # Add to filmstrip every 20 frames
-                if t % 20 == 0:
-                    filmstrip_frames.append(combined)
+            # Record Video (All Episodes)
+            recon_img = jnp.transpose(recon_jax, (1, 2, 0))
+            recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
+            combined = np.hstack((obs_small, np.array(recon_img)))
+            frames_combined.append(combined)
+            
+            # Add to filmstrip every 20 frames
+            if t % 20 == 0:
+                filmstrip_frames.append(combined)
 
             # --- LOGIC START ---
             # 1. WARMUP (Frames 0-50): Drive Straight
@@ -114,17 +124,34 @@ def main():
                 current_action = np.array(action_jax)
                 rnn_action = action_jax
             
-            # 3. Telemetry (Check gas!)
+            # 3. Telemetry
+            h_norm = jnp.linalg.norm(h)
             if t % 100 == 0:
-                 h_norm = jnp.linalg.norm(h)
                  print(f"T={t} | Steer: {current_action[0]:.2f} | Gas: {current_action[1]:.2f} | H-Norm: {h_norm:.2f}")
-            # -------------------
-
+            
+            # Store Telemetry (Need r_pred which is computed *after* this step for *next* step?)
+            # Actually rnn_next gives prediction for t+1.
+            # So prev_expected_z corresponds to prediction made at t-1 for t.
+            # But we don't have r_pred stored from previous step easily unless we change loop vars.
+            # Let's append a dummy for now or restructure slightly? 
+            # Actually, we call rnn_next at end of loop.
+            
             obs, reward, term, trunc, _ = env.step(current_action)
             total_reward += reward
             
-            h, c, expected_z = rnn_next(z, rnn_action, h, c)
+            h, c, expected_z, r_pred_val = rnn_next(z, rnn_action, h, c)
             prev_expected_z = expected_z
+            
+            # Store Telemetry
+            telemetry_data['actions'].append(current_action)
+            telemetry_data['z'].append(z)
+            telemetry_data['h_norm'].append(h_norm)
+            telemetry_data['surprise'].append(surprise)
+            telemetry_data['rewards'].append(reward)
+            try:
+                telemetry_data['r_pred'].append(float(r_pred_val.item()))
+            except:
+                telemetry_data['r_pred'].append(float(r_pred_val[0]))
             
             if term or trunc:
                 break
@@ -132,9 +159,22 @@ def main():
         avg_surprise = total_surprise / t if t > 0 else 0.0
         print(f"Episode {episode+1}: Score = {total_reward:.1f} | Avg Surprise = {avg_surprise:.4f}")
         
-        if episode == 0:
+        # Save Telemetry
+        if not os.path.exists("telemetry"):
+            os.makedirs("telemetry")
+        np.savez(f"telemetry/ep_{episode+1}.npz", 
+                 actions=np.array(telemetry_data['actions']),
+                 rewards=np.array(telemetry_data['rewards']),
+                 z=np.array(telemetry_data['z']),
+                 h_norm=np.array(telemetry_data['h_norm']),
+                 surprise=np.array(telemetry_data['surprise']),
+                 r_pred=np.array(telemetry_data['r_pred']))
+        print(f"Saved telemetry/ep_{episode+1}.npz")
+        
+        # Save Video per episode
+        if frames_combined:
             height, width, _ = frames_combined[0].shape
-            video_path = os.path.join(VIDEO_DIR, "final_agent.mp4")
+            video_path = os.path.join(VIDEO_DIR, f"final_agent_ep{episode+1}.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
             video = cv2.VideoWriter(video_path, fourcc, 30, (width, height))
             for f in frames_combined:
@@ -142,12 +182,12 @@ def main():
             video.release()
             print(f"Video saved to {video_path}")
             
-            # Save Filmstrip
+            # Save Filmstrip per episode
             if len(filmstrip_frames) > 0:
-                # Arrange in a grid or long strip? Let's do a long strip for simplicity.
                 filmstrip_img = np.hstack(filmstrip_frames)
-                cv2.imwrite("debug_filmstrip.png", cv2.cvtColor(filmstrip_img, cv2.COLOR_RGB2BGR))
-                print("Saved debug_filmstrip.png")
+                fs_path = f"debug_filmstrip_ep{episode+1}.png"
+                cv2.imwrite(fs_path, cv2.cvtColor(filmstrip_img, cv2.COLOR_RGB2BGR))
+                print(f"Saved {fs_path}")
 
     env.close()
 
