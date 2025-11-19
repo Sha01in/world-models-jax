@@ -49,6 +49,12 @@ def main():
         return get_action(controller_params, z, h)
 
     @jax.jit
+    def decode_from_z(z):
+        # Decode a latent vector back to an image
+        recon = vae.decoder(z)
+        return recon
+
+    @jax.jit
     def rnn_next(z, a, h, c):
         rnn_in = jnp.concatenate([z, a], axis=0)
         (log_pi, mu, log_sigma, r_pred, d_pred), (h_new, c_new) = rnn(rnn_in, (h, c))
@@ -102,9 +108,23 @@ def main():
                 total_surprise += surprise
             
             # Record Video (All Episodes)
+            # 1. Real Observation (already in obs_small)
+            
+            # 2. VAE Reconstruction
             recon_img = jnp.transpose(recon_jax, (1, 2, 0))
             recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
-            combined = np.hstack((obs_small, np.array(recon_img)))
+            
+            # 3. RNN Dream (Prediction for NEXT frame, shifted by 1 for vis?)
+            # Actually, prev_expected_z is the prediction for the CURRENT frame made 1 step ago.
+            if prev_expected_z is not None:
+                dream_jax = decode_from_z(prev_expected_z)
+                dream_img = jnp.transpose(dream_jax, (1, 2, 0))
+                dream_img = jnp.array(dream_img * 255.0, dtype=jnp.uint8)
+            else:
+                dream_img = jnp.zeros_like(recon_img)
+
+            # Combine: [Real | Recon | Dream]
+            combined = np.hstack((obs_small, np.array(recon_img), np.array(dream_img)))
             frames_combined.append(combined)
             
             # Add to filmstrip every 20 frames
