@@ -40,7 +40,7 @@
 *   **Training:** Evolution Strategy (CMA-ES) inside the "Dream" environment.
 
 ## 4. Data Strategy (Sim2Real2Sim)
-To bridge the gap between the RNN's hallucinations and reality, we use a diverse dataset:
+To bridge the gap between the RNN's hallucinations and reality, I use a diverse dataset:
 1.  **Random (Brownian):** Smooth random driving to cover the state space.
 2.  **Iterative Failure:** Data collected from previous failing agents to teach the RNN about "death spins."
 3.  **Recovery (Heuristic + Noise):** Heuristic driver with random perturbations to teach recovery.
