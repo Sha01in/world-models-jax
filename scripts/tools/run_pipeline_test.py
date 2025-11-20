@@ -16,6 +16,18 @@ def main():
     print("Running Full Pipeline Integration Test (Tiny)")
     print("="*60)
     
+    # Dependency Check
+    try:
+        import gymnasium
+        import jax
+    except ImportError as e:
+        print(f"\n[ERROR] Missing dependency: {e.name}")
+        print("You seem to be running with a Python interpreter that doesn't have the dependencies installed.")
+        print(f"Current Python: {sys.executable}")
+        print("\nFix this by running with 'uv run':")
+        print("    uv run python scripts/tools/run_pipeline_test.py")
+        sys.exit(1)
+
     # Ensure python path is set
     os.environ["PYTHONPATH"] = os.getcwd()
 

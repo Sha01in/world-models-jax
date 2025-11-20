@@ -11,6 +11,7 @@ env/
 # --- IDE Settings ---
 .vscode/
 .idea/
+.history/
 
 # --- Project Data (CRITICAL) ---
 # Ignore the folder containing the 10,000 episode rollouts
