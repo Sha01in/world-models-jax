@@ -72,10 +72,17 @@ def loss_fn(model, inputs, targets_z, targets_r, targets_d, key):
     total_log_prob = jax.nn.logsumexp(log_pi + log_prob, axis=2)
     loss_mdn = -jnp.mean(total_log_prob)
     
-    # 2. Reward Loss (MSE)
+    # 2. Reward Loss (Asymmetric MSE)
     # r_seq is (B, T, 1), targets_r is (B, T) -> expand
     targets_r_exp = jnp.expand_dims(targets_r, -1)
-    loss_reward = jnp.mean((r_seq - targets_r_exp) ** 2)
+    diff = r_seq - targets_r_exp
+    
+    # penalize "Optimism" (Pred > Actual) significantly more than "Pessimism"
+    # If diff > 0 (Pred > Actual), we multiply loss by 5.0
+    # Base weight is 10.0 (from previous setup), so Optimism gets 50.0 effectively
+    asymmetric_weight = jnp.where(diff > 0, 5.0, 1.0)
+    
+    loss_reward = jnp.mean(asymmetric_weight * (diff ** 2))
     
     # 3. Done Loss (BCE)
     targets_d_exp = jnp.expand_dims(targets_d, -1)
