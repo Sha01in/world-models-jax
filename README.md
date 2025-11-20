@@ -100,6 +100,13 @@ This **Active Learning** loop fixes the "Sim2Real Gap" (where the RNN hallucinat
 
 ## 5. Results
 
+### The Winning Recipe
+To achieve the score of **843.0**, we used the following dataset composition (~4,000 episodes total):
+*   **2,000 Random Episodes:** Initial training of V and M.
+*   **500 Recovery Episodes:** Heuristic driver with noise (teaching recovery).
+*   **500 Aggressive Episodes:** Heuristic driver entering corners too fast (teaching friction limits).
+*   **500 On-Policy Failure Episodes:** **Critical Step.** We ran the agent, let it crash (due to "optimism delusions"), and added this specific data to the training set.
+
 *   **Episode Score:** 843.0 (Solved)
 *   **Behavior:** Robust navigation of sharp turns; recovery from minor slips.
 
@@ -107,4 +114,18 @@ This **Active Learning** loop fixes the "Sim2Real Gap" (where the RNN hallucinat
 *   Original Paper: [World Models](https://arxiv.org/abs/1803.10122) by David Ha and Juergen Schmidhuber.
 *   Environment: [Gymnasium](https://github.com/Farama-Foundation/Gymnasium).
 *   Framework: [JAX](https://github.com/google/jax) & [Equinox](https://github.com/patrick-kidger/equinox).
+
+## 7. Technical Notes: The JAX Advantage
+
+This project demonstrates a **Hybrid Architecture**:
+
+1.  **GPU-Accelerated Dreaming:**
+    The most significant advantage of JAX is in `train_dream.py`. We use `jax.vmap` to simulate the RNN "dreams" for the **entire population (256 agents)** simultaneously on the GPU. This turns the Evolution Strategy evaluation which is usually a slow sequential process into a single efficient batched operation.
+
+2.  **CPU-Bound Reality:**
+    Since `CarRacing-v3` is based on Box2D (CPU physics), the *real* environment interaction cannot be JIT-compiled. We handle this via:
+    *   **Data Collection:** Standard Python `multiprocessing` to run parallel environments on CPU.
+    *   **Inference:** Using JAX on CPU (worker threads) or GPU (main agent) depending on the bottleneck.
+
+This approach leverages JAX where it excels (massive parallel simulation) while accommodating standard Gym environments.
 
