@@ -5,6 +5,8 @@ import equinox as eqx
 import cma
 import glob
 import time
+import os
+import sys
 from src.rnn import MDNRNN
 from src.controller import get_action
 
@@ -27,6 +29,12 @@ INPUT_DIM = LATENT_DIM + HIDDEN_SIZE
 NUM_GAUSSIANS = 5
 
 def load_rnn():
+    if not os.path.exists(RNN_PATH):
+        print(f"\n[ERROR] Checkpoint not found: {RNN_PATH}")
+        print("You must train the RNN before the Dreamer can run.")
+        print("Run: python train_rnn.py\n")
+        sys.exit(1)
+        
     key = jax.random.PRNGKey(0)
     model = MDNRNN(latent_dim=LATENT_DIM, action_dim=ACTION_DIM, 
                    hidden_size=HIDDEN_SIZE, key=key)
@@ -35,6 +43,12 @@ def load_rnn():
 
 def load_initial_zs():
     files = glob.glob("data/series/*.npz")
+    if not files:
+        print(f"\n[ERROR] No data series found in 'data/series/'")
+        print("You must process collected data before training.")
+        print("Run: python process_data.py\n")
+        sys.exit(1)
+        
     np.random.shuffle(files)
     all_z = []
     print("Loading seed data for dreams...")

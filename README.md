@@ -64,6 +64,13 @@ cd world-models-jax
 
 # Initialize and sync environment
 uv sync
+
+# IMPORTANT: Install JAX with CUDA support (if you have an NVIDIA GPU)
+# See: https://jax.readthedocs.io/en/latest/installation.html
+uv pip install "jax[cuda12]"
+
+# For Mac (Apple Silicon) users:
+# uv pip install "jax-metal"
 ```
 
 ### Verify Installation
@@ -75,6 +82,11 @@ python scripts/tools/check_gpu.py
 Or using standard pip:
 ```bash
 pip install -r requirements.txt
+# IMPORTANT: Install JAX with CUDA support explicitly
+pip install -U "jax[cuda12]"
+
+# For Mac (Apple Silicon) users:
+# pip install -U "jax-metal"
 ```
 
 ## 3. Usage Pipeline
