@@ -37,9 +37,13 @@ def main():
     # 6. Visualize Agent (1 Episode)
     run_command("python test_agent.py --episodes 1")
 
+    # 7. Generate Debug Grid
+    run_command("python scripts/tools/visualize_episode.py --episode 1")
+
     print("\n" + "="*60)
     print("[SUCCESS] Pipeline integration test passed!")
     print("Check 'videos/' for the agent performance video.")
+    print("Check 'diagnostics/' for debug filmstrips and grids.")
     print("="*60)
 
 if __name__ == "__main__":

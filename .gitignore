@@ -32,7 +32,9 @@ Thumbs.db
 
 # --- Media Artifacts ---
 videos/
+diagnostics/
 *.mp4
+*.png
 
 # --- Documentation ---
 # Keep pyproject.toml and uv.lock so others can reproduce your env

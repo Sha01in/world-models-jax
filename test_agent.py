@@ -13,6 +13,7 @@ from src.controller import get_action
 # Settings (Defaults)
 NUM_EPISODES = 5
 VIDEO_DIR = "videos"
+DIAGNOSTICS_DIR = "diagnostics"
 LATENT_DIM = 32
 HIDDEN_SIZE = 256
 ACTION_DIM = 3
@@ -78,8 +79,11 @@ def main():
     # Use render_mode="rgb_array" to get pixels
     env = gym.make("CarRacing-v3", render_mode="rgb_array")
     
-    if save_video and not os.path.exists(VIDEO_DIR):
-        os.makedirs(VIDEO_DIR)
+    if save_video:
+        if not os.path.exists(VIDEO_DIR):
+            os.makedirs(VIDEO_DIR)
+        if not os.path.exists(DIAGNOSTICS_DIR):
+            os.makedirs(DIAGNOSTICS_DIR)
 
     print(f"Testing Agent: {num_episodes} episodes...")
 
@@ -207,7 +211,7 @@ def main():
             # Save Filmstrip per episode
             if len(filmstrip_frames) > 0:
                 filmstrip_img = np.hstack(filmstrip_frames)
-                fs_path = f"debug_filmstrip_ep{episode+1}.png"
+                fs_path = os.path.join(DIAGNOSTICS_DIR, f"debug_filmstrip_ep{episode+1}.png")
                 cv2.imwrite(fs_path, cv2.cvtColor(filmstrip_img, cv2.COLOR_RGB2BGR))
                 print(f"Saved {fs_path}")
 

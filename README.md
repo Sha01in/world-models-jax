@@ -28,6 +28,7 @@ The agent consists of three independent components trained sequentially:
 ├── scripts/             # Helper tools
 │   ├── data_collection/ # Distributed rollout collection
 │   └── tools/           # Debugging & visualization
+├── diagnostics/         # Debug outputs (filmstrips, grids)
 ├── train_dream.py       # Evolution Strategy (CMA-ES) loop
 ├── train_rnn.py         # World Model training script
 ├── process_data.py      # Data preprocessing pipeline

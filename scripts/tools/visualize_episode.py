@@ -1,22 +1,39 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+import argparse
 
-# Settings
-EPISODE_NUM = 4
-VIDEO_PATH = f"videos/final_agent_ep{EPISODE_NUM}.mp4"
-TELEMETRY_PATH = f"telemetry/ep_{EPISODE_NUM}.npz"
-OUTPUT_PATH = f"debug_grid_ep{EPISODE_NUM}.png"
+import os
+
+# Default Settings
+DEFAULT_EPISODE_NUM = 4
+
+def get_paths(episode_num):
+    return {
+        "video": f"videos/final_agent_ep{episode_num}.mp4",
+        "telemetry": f"telemetry/ep_{episode_num}.npz",
+        "output": f"diagnostics/debug_grid_ep{episode_num}.png"
+    }
 
 # Grid Settings
 ROWS = 5
 COLS = 4
 TOTAL_FRAMES_TO_SHOW = ROWS * COLS
 
-def create_annotated_grid():
+def create_annotated_grid(episode_num):
+    paths = get_paths(episode_num)
+    video_path = paths["video"]
+    telemetry_path = paths["telemetry"]
+    output_path = paths["output"]
+    
+    # Ensure output directory exists
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # 1. Load Data
     try:
-        data = np.load(TELEMETRY_PATH)
+        data = np.load(telemetry_path)
         rewards = data['rewards']
         r_pred = data['r_pred']
         surprise = data['surprise']
@@ -26,13 +43,13 @@ def create_annotated_grid():
         return
 
     # 2. Open Video
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Failed to open video: {VIDEO_PATH}")
+        print(f"Failed to open video: {video_path}")
         return
     
     total_frames_video = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    print(f"Processing Episode {EPISODE_NUM} | Video Frames: {total_frames_video} | Data Points: {len(rewards)}")
+    print(f"Processing Episode {episode_num} | Video Frames: {total_frames_video} | Data Points: {len(rewards)}")
 
     # 3. Select Key Frames
     # We want to see a mix of:
@@ -110,10 +127,13 @@ def create_annotated_grid():
         plt.setp(ax.spines.values(), color=status_color, linewidth=3)
 
     plt.tight_layout()
-    plt.suptitle(f"Episode {EPISODE_NUM} Diagnostics: Real | Recon | Dream", fontsize=16, y=1.02)
-    plt.savefig(OUTPUT_PATH, bbox_inches='tight')
+    plt.suptitle(f"Episode {episode_num} Diagnostics: Real | Recon | Dream", fontsize=16, y=1.02)
+    plt.savefig(output_path, bbox_inches='tight')
     cap.release()
-    print(f"Saved diagnostic grid to {OUTPUT_PATH}")
+    print(f"Saved diagnostic grid to {output_path}")
 
 if __name__ == "__main__":
-    create_annotated_grid()
+    parser = argparse.ArgumentParser(description="Create Diagnostic Grid from Episode")
+    parser.add_argument("--episode", type=int, default=DEFAULT_EPISODE_NUM, help="Episode number to visualize")
+    args = parser.parse_args()
+    create_annotated_grid(args.episode)
