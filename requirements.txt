@@ -1,0 +1,13 @@
+jax
+jaxlib
+equinox
+optax
+gymnasium[box2d]
+cma
+opencv-python
+numpy
+tqdm
+matplotlib
+imageio
+ipykernel
+
