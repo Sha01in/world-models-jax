@@ -46,9 +46,9 @@ def check_data_quality():
     print(f"Frames with +Reward:   {pos_ratio*100:.2f}%")
     
     if max_score < 50:
-        print("\n[CRITICAL WARNING] Your training data is too poor.")
-        print("The random policy never learned to drive, so the RNN has no 'good memories' to dream about.")
-        print("The RNN likely predicts negative reward for everything.")
+        print("\n[WARNING] Your training data quality is low.")
+        print("The random policy may not have learned effective driving strategies.")
+        print("The RNN might predict negative reward frequently.")
     else:
         print("\n[OK] Data looks sufficient.")
 
@@ -107,13 +107,13 @@ def check_rnn_predictions():
     
     print("\nDiagnosis:")
     if avg_pred_d > 0.5:
-        print("[PROBLEM] The RNN predicts 'Death' (Done) constantly.")
-        print("Fix: Bias the Done Head output layer to start negative.")
+        print("[ISSUE] The RNN predicts 'Done' frequently.")
+        print("Suggestion: Bias the Done Head output layer to start negative.")
     elif avg_pred_r < 0.0:
-        print("[PROBLEM] The RNN is depressed (Predicts negative reward constantly).")
-        print("Fix: Better data collection or weighting positive rewards higher.")
+        print("[ISSUE] The RNN consistently predicts negative rewards.")
+        print("Suggestion: Improve data collection or weight positive rewards higher.")
     else:
-        print("[OK] Predictions look reasonable. The issue might be in the Dream loop logic.")
+        print("[OK] Predictions look reasonable.")
 
 if __name__ == "__main__":
     check_data_quality()

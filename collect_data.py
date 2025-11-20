@@ -9,6 +9,9 @@ def print_menu():
     print("3. Recovery [Heuristic + Noise]")
     print("4. Aggressive [Heuristic Speed]")
     print("5. On-Policy [Current Agent Failures]")
+    print("6. Heuristic [Good Data]")
+    print("7. Smart Random [Score > 5]")
+    print("8. Failures [Crash Data]")
     print("0. Exit")
     print("====================================")
 
@@ -40,15 +43,21 @@ def main():
             print("Exiting.")
             break
         elif choice == '1':
-            run_script("data_collection_random_parallel.py")
+            run_script("data_collection_random.py")
         elif choice == '2':
-            run_script("data_collection_iterative_parallel.py")
+            run_script("data_collection_iterative.py")
         elif choice == '3':
-            run_script("data_collection_recovery_parallel.py")
+            run_script("data_collection_recovery.py")
         elif choice == '4':
-            run_script("data_collection_aggressive_parallel.py")
+            run_script("data_collection_aggressive.py")
         elif choice == '5':
             run_script("data_collection_on_policy.py")
+        elif choice == '6':
+            run_script("data_collection_heuristic.py")
+        elif choice == '7':
+            run_script("data_collection_smart.py")
+        elif choice == '8':
+            run_script("data_collection_failures.py")
         else:
             print("Invalid choice. Please try again.")
 

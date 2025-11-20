@@ -3,9 +3,11 @@ import numpy as np
 import os
 import cv2
 from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
 # Settings
-NUM_EPISODES = 500
+NUM_ENVS = 16           # Parallel workers
+NUM_EPISODES = 500      # Total episodes
 MAX_STEPS = 600 
 DATA_DIR = "data/rollouts_recovery"
 IMG_SIZE = 64
@@ -14,7 +16,10 @@ def get_heuristic_action(obs, t):
     """
     A simple 'cheat' driver that looks at the pixels.
     """
+    # Crop to the area just ahead of the car
     crop = obs[60:84, :, :]
+    
+    # Detect Road
     lower_gray = np.array([90, 90, 90])
     upper_gray = np.array([120, 120, 120])
     mask = cv2.inRange(crop, lower_gray, upper_gray)
@@ -39,15 +44,12 @@ def get_heuristic_action(obs, t):
     steer += np.random.normal(0, 0.05) # Reduced noise for stability
     return np.array([steer, gas, brake])
 
-def collect_data():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-        
-    env = gym.make("CarRacing-v3", render_mode="rgb_array")
+def collect_single_episode(episode_idx):
+    # Uniquely seed based on episode index to avoid identical runs
+    np.random.seed(episode_idx) 
     
-    print(f"Collecting {NUM_EPISODES} recovery episodes (Heuristic + Perturbation)...")
-    
-    for i in tqdm(range(NUM_EPISODES)):
+    try:
+        env = gym.make("CarRacing-v3", render_mode="rgb_array")
         obs, _ = env.reset()
         
         obs_seq, action_seq, reward_seq, done_seq = [], [], [], []
@@ -87,18 +89,35 @@ def collect_data():
             
             if term or trunc:
                 break
-                
-        # Save
+        
+        env.close()
+        
+        # Save locally within the worker
+        save_path = os.path.join(DATA_DIR, f"episode_{episode_idx}.npz")
         np.savez_compressed(
-            os.path.join(DATA_DIR, f"episode_{i}.npz"),
+            save_path,
             obs=np.array(obs_seq),
-            actions=np.array(action_seq), # Note: 'actions' plural for consistency
+            actions=np.array(action_seq),
             rewards=np.array(reward_seq),
             dones=np.array(done_seq)
         )
+        return True
+    except Exception as e:
+        print(f"Error in episode {episode_idx}: {e}")
+        return False
+
+def collect_data_parallel():
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
         
-    env.close()
-    print("Recovery Data Collection Complete.")
+    print(f"Launching {NUM_ENVS} parallel workers for {NUM_EPISODES} episodes...")
+    
+    # Using ProcessPoolExecutor to run episodes in parallel
+    with ProcessPoolExecutor(max_workers=NUM_ENVS) as executor:
+        results = list(tqdm(executor.map(collect_single_episode, range(NUM_EPISODES)), total=NUM_EPISODES))
+        
+    print(f"Data collection complete. Success rate: {sum(results)}/{NUM_EPISODES}")
 
 if __name__ == "__main__":
-    collect_data()
+    collect_data_parallel()
+

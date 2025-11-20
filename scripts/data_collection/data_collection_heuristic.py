@@ -3,8 +3,10 @@ import numpy as np
 import os
 import cv2
 from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
 # Settings
+NUM_ENVS = 16           # Parallel workers
 NUM_EPISODES = 500      
 MAX_STEPS = 1000        
 DATA_DIR = "data/rollouts"
@@ -58,67 +60,96 @@ def get_heuristic_action(obs, t):
     
     return np.array([steer, gas, brake])
 
+def collect_single_episode(episode_idx):
+    # Uniquely seed based on episode index to avoid identical runs
+    np.random.seed(episode_idx * 999)
+    
+    env = gym.make("CarRacing-v3", render_mode="rgb_array")
+    obs, _ = env.reset(seed=episode_idx)
+    
+    obs_seq, action_seq, reward_seq, done_seq = [], [], [], []
+    total_reward = 0
+    
+    for t in range(MAX_STEPS):
+        # Resize for storage
+        obs_small = cv2.resize(obs, (IMG_SIZE, IMG_SIZE))
+        
+        # Use Heuristic
+        action = get_heuristic_action(obs, t)
+        
+        obs, reward, term, trunc, _ = env.step(action)
+        done = term or trunc
+        
+        # Record
+        # Note: We append after step to match VAE training (s_t, a_t -> s_t+1) logic
+        # ideally, but here we just capture the flow.
+        # Actually, for VAE we want obs[t]. 
+        # Let's append obs_small (from BEFORE step) and action (used IN step).
+        obs_seq.append(obs_small)
+        action_seq.append(action)
+        reward_seq.append(reward)
+        done_seq.append(done)
+        total_reward += reward
+        
+        if done:
+            break
+
+    env.close()
+    
+    if total_reward > MIN_SCORE:
+        save_path = os.path.join(DATA_DIR, f"rollout_{episode_idx}.npz")
+        np.savez_compressed(
+            save_path,
+            obs=np.array(obs_seq),
+            actions=np.array(action_seq),
+            rewards=np.array(reward_seq),
+            dones=np.array(done_seq)
+        )
+        return True, total_reward
+    
+    return False, total_reward
+
 def collect_data():
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
         
-    env = gym.make("CarRacing-v3", render_mode="rgb_array")
+    print(f"Collecting {NUM_EPISODES} heuristic episodes (Score > {MIN_SCORE}) in parallel...")
     
-    print(f"Collecting {NUM_EPISODES} heuristic episodes (Score > {MIN_SCORE})...")
-    
+    # We might need to run more attempts than episodes if some fail score check
     collected_counts = 0
     attempts = 0
-    recent_scores = []
     pbar = tqdm(total=NUM_EPISODES)
     
-    while collected_counts < NUM_EPISODES:
-        attempts += 1
-        obs, _ = env.reset()
+    # Using ProcessPoolExecutor to run episodes in parallel
+    # Note: This is "Embarrassingly Parallel" so we just launch tasks.
+    # However, since we filter by score, we need to keep launching until we get enough.
+    
+    with ProcessPoolExecutor(max_workers=NUM_ENVS) as executor:
+        # Launch an initial batch larger than needed to account for failures
+        BATCH_MULTIPLIER = 2 
+        pending_futures = []
         
-        obs_seq, action_seq, reward_seq, done_seq = [], [], [], []
-        total_reward = 0
-        
-        for t in range(MAX_STEPS):
-            # Resize for storage
-            obs_small = cv2.resize(obs, (IMG_SIZE, IMG_SIZE))
-            obs_seq.append(obs_small)
+        while collected_counts < NUM_EPISODES:
+            needed = NUM_EPISODES - collected_counts
+            to_launch = needed * BATCH_MULTIPLIER
             
-            # Use Heuristic
-            action = get_heuristic_action(obs, t)
+            # Launch batch
+            futures = [executor.submit(collect_single_episode, attempts + i) for i in range(to_launch)]
+            attempts += to_launch
             
-            obs, reward, term, trunc, _ = env.step(action)
-            done = term or trunc
+            # Gather results
+            for f in futures:
+                success, score = f.result()
+                if success:
+                    collected_counts += 1
+                    pbar.update(1)
+                    pbar.set_description(f"Saved: {collected_counts} (Last Score: {score:.1f})")
+                
+                if collected_counts >= NUM_EPISODES:
+                    break
             
-            # Record
-            action_seq.append(action)
-            reward_seq.append(reward)
-            done_seq.append(done)
-            total_reward += reward
-            
-            if done:
-                break
-        
-        recent_scores.append(total_reward)
-        if len(recent_scores) > 50:
-            recent_scores.pop(0)
-        
-        if total_reward > MIN_SCORE:
-            np.savez_compressed(
-                os.path.join(DATA_DIR, f"rollout_{collected_counts}.npz"),
-                obs=np.array(obs_seq),
-                actions=np.array(action_seq),
-                rewards=np.array(reward_seq),
-                dones=np.array(done_seq)
-            )
-            collected_counts += 1
-            pbar.update(1)
-        
-        if attempts % 5 == 0:
-            avg = np.mean(recent_scores)
-            pbar.set_description(f"Saved: {collected_counts} | Avg Score: {avg:.1f}")
-            
-    env.close()
     print(f"\nData collection complete. Total Attempts: {attempts}")
 
 if __name__ == "__main__":
     collect_data()
+

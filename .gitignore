@@ -39,3 +39,8 @@ videos/
 # !pyproject.toml
 # !uv.lock
 GEMINI.md
+
+# --- Temporary Work ---
+temp/
+tmp/
+scratch/
