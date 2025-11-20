@@ -31,32 +31,33 @@
     *   Predicted Reward $r_{t+1}$ (used for training Controller).
     *   Predicted Done $d_{t+1}$ (to stop dreams).
 *   **Training:** Trained on "Mixed" Dataset (Good + Bad + Recovery + Aggressive).
-*   **Loss:** Negative Log Likelihood (NLL) for $z$, MSE for $r$, BCE for $d$.
+*   **Loss:** Weighted Loss: 1.0 * NLL ($z$) + 10.0 * MSE ($r$) + 10.0 * BCE ($d$). Heavily penalizes incorrect reward/done predictions.
 
 ### Controller (C) - `src/controller.py`
 *   **Type:** Simple Single-Layer Perceptron (Linear).
 *   **Input:** Concatenation of $[z_t, h_t]$.
 *   **Output:** Action $[Steer, Gas, Brake]$.
-*   **Training:** Evolution Strategy (CMA-ES) inside the "Dream" environment.
+*   **Training:** Evolution Strategy (CMA-ES) inside the "Dream" environment with Temperature $\tau=1.25$.
 
 ## 4. Data Strategy (Sim2Real2Sim)
 To bridge the gap between the RNN's hallucinations and reality, we use a diverse dataset:
 1.  **Random (Brownian):** Smooth random driving to cover the state space.
-2.  **Iterative Failure:** Data collected from previous failing agents to teach the RNN about "death spins."
+2.  **Iterative Failure:** Data collected from previous failing agents (specifically on-policy failures) to teach the RNN about "death spins."
 3.  **Recovery (Heuristic + Noise):** Heuristic driver with random perturbations to teach recovery.
 4.  **Aggressive (Fast Entry):** Heuristic driver that enters corners too fast to teach friction limits.
 5.  **Augmentation:** All data is horizontally flipped (Mirrored) to double the dataset and remove left-turn bias.
 
 ## 5. Current Status
 *   **VAE:** Functional. Good reconstructions.
-*   **RNN:** Functional. Able to predict track curvature and negative rewards for grass.
-*   **Controller:** Evolved in Dream to score ~800+.
+*   **RNN:** Functional. Loss weighted to prioritize reward/done accuracy.
+*   **Controller:** Evolved in Dream (Temp 1.25) to score ~650+.
 *   **Real World Performance:**
-    *   **Success:** Can navigate simple tracks and some corners.
-    *   **Issues:** Still struggles with sharp "Hairpin" turns and sometimes cuts corners too aggressively, leading to spins.
-    *   **Diagnosis:** The "Dream" might be slightly more permissive than `CarRacing-v3` physics (especially regarding grass friction), causing the agent to be overconfident.
+    *   **Progress:** One episode successfully navigated the track (Score: 236.5).
+    *   **Issues:** "Reward Delusion" persists in failing episodes (RNN predicts positive reward while crashing). Agent still struggles with some corner entries and recovering from deep grass.
+    *   **Diagnosis:** The Sim2Real gap is closing but not gone. The RNN is optimistic about edge cases.
 
 ## 6. Usage
 *   `python test_agent.py`: Run the final agent and save video.
 *   `python train_dream.py`: Evolve the controller in the RNN.
 *   `python train_rnn.py`: Retrain the World Model.
+*   `python data_collection_on_policy.py`: Collect failures from current agent.

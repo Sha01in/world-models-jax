@@ -27,11 +27,20 @@ def analyze_episode(ep_num):
     # Check for Hallucination
     # Find frames where actual reward is negative but predicted reward is positive
     hallucinations = 0
+    delusion_diffs = []
+    
     for i in range(len(rewards)):
-        if rewards[i] < -0.05 and r_pred[i] > 0.0:
-            hallucinations += 1
+        if rewards[i] < -0.05: # Actual crash/grass
+            diff = r_pred[i] - rewards[i]
+            delusion_diffs.append(diff)
+            if r_pred[i] > 0.0:
+                hallucinations += 1
             
     print(f"Hallucination Frames (Actual < -0.05, Pred > 0): {hallucinations} / {len(rewards)}")
+    if len(delusion_diffs) > 0:
+        print(f"Avg Reward Delusion (Pred - Actual) when Crashing: {np.mean(delusion_diffs):.4f}")
+    else:
+        print("No crashes detected in this episode.")
     
     # Check for Helplessness
     # Find frames where predicted reward is negative, but agent fails to steer?

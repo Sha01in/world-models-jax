@@ -18,6 +18,9 @@ DATA_PATTERN_GOOD = "data/rollouts/*.npz"
 DATA_PATTERN_BAD = "data/rollouts_bad/*.npz"
 DATA_PATTERN_RANDOM = "data/rollouts_random/*.npz"
 DATA_PATTERN_ITERATIVE = "data/rollouts_iterative/*.npz"
+DATA_PATTERN_RECOVERY = "data/rollouts_recovery/*.npz"
+DATA_PATTERN_AGGRESSIVE = "data/rollouts_aggressive/*.npz"
+DATA_PATTERN_ON_POLICY = "data/rollouts_on_policy/*.npz"
 
 def process_data():
     if not os.path.exists(OUTPUT_DIR):
@@ -48,13 +51,17 @@ def process_data():
     files_bad = glob.glob(DATA_PATTERN_BAD)
     files_random = glob.glob(DATA_PATTERN_RANDOM)
     files_iterative = glob.glob(DATA_PATTERN_ITERATIVE)
+    files_recovery = glob.glob(DATA_PATTERN_RECOVERY)
+    files_aggressive = glob.glob(DATA_PATTERN_AGGRESSIVE)
+    files_on_policy = glob.glob(DATA_PATTERN_ON_POLICY)
     
-    files = files_good + files_bad + files_random + files_iterative
+    files = (files_good + files_bad + files_random + files_iterative + 
+             files_recovery + files_aggressive + files_on_policy)
     
     # Shuffle to mix them up during processing (optional but good practice)
     np.random.shuffle(files)
 
-    print(f"Processing {len(files)} episodes (Good+Bad+Random+Iterative + Mirroring)...")
+    print(f"Processing {len(files)} episodes (All Datasets + Mirroring)...")
 
     for i, f in enumerate(tqdm(files)):
         try:

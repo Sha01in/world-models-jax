@@ -14,7 +14,7 @@ POPULATION_SIZE = 256
 BATCH_SIZE = 2048           
 DREAM_LENGTH = 1000         
 NUM_GENERATIONS = 100       
-TEMPERATURE = 1.15          
+TEMPERATURE = 1.25          
 
 # Model Paths
 RNN_PATH = "checkpoints/rnn.eqx"
@@ -36,9 +36,10 @@ def load_rnn():
 
 def load_initial_zs():
     files = glob.glob("data/series/*.npz")
+    np.random.shuffle(files)
     all_z = []
     print("Loading seed data for dreams...")
-    for f in files[:20]: 
+    for f in files[:50]: 
         with np.load(f) as data:
             all_z.append(data['mu']) 
     return np.concatenate(all_z, axis=0)
