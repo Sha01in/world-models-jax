@@ -99,7 +99,8 @@ def collect_data():
                 break
         
         recent_scores.append(total_reward)
-        if len(recent_scores) > 50: recent_scores.pop(0)
+        if len(recent_scores) > 50:
+            recent_scores.pop(0)
         
         if total_reward > MIN_SCORE:
             np.savez_compressed(

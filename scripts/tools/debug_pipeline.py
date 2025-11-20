@@ -4,7 +4,6 @@ import jax
 import jax.numpy as jnp
 import equinox as eqx
 from src.rnn import MDNRNN
-import matplotlib.pyplot as plt
 
 # Settings
 DATA_DIR = "data/rollouts/*.npz"  # Raw data
@@ -62,8 +61,8 @@ def check_rnn_predictions():
     try:
         rnn = eqx.tree_deserialise_leaves(RNN_PATH, rnn)
         print("RNN loaded successfully.")
-    except:
-        print("Could not load RNN.")
+    except Exception as e:
+        print(f"Could not load RNN: {e}")
         return
 
     # Load one processed series

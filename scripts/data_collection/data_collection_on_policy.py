@@ -6,7 +6,6 @@ import equinox as eqx
 import cv2
 import os
 import time
-import signal
 from src.vae import VAE
 from src.rnn import MDNRNN
 from src.controller import get_action
@@ -89,8 +88,8 @@ def collect_episode_worker(seed):
         obs_seq, action_seq, reward_seq, done_seq = [], [], [], []
         
         # Warmup Action
-        current_action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
-        
+        # current_action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
+
         for t in range(MAX_STEPS):
             # Resize
             obs_small = cv2.resize(obs, (IMG_SIZE, IMG_SIZE))
@@ -140,7 +139,7 @@ def main():
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
     
-    print(f"Starting Distributed Data Collection.")
+    print("Starting Distributed Data Collection.")
     print(f"Workers: {NUM_WORKERS}")
     print(f"Target: {NUM_EPISODES} episodes")
     print("JAX Mode: CPU (Forced per worker)")

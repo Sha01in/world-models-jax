@@ -3,7 +3,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import equinox as eqx
-import cv2
 import os
 from src.vae import VAE
 from src.rnn import MDNRNN
@@ -105,8 +104,8 @@ def collect_data():
     step_counts = np.zeros(NUM_ENVS, dtype=int)
     
     # Last action taken (for RNN input)
-    last_actions = jnp.zeros((NUM_ENVS, ACTION_DIM))
-    
+    # last_actions = jnp.zeros((NUM_ENVS, ACTION_DIM))
+
     saved_count = 0
     obs, _ = envs.reset()
     

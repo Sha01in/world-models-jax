@@ -70,7 +70,7 @@ def main():
     if not os.path.exists(VIDEO_DIR):
         os.makedirs(VIDEO_DIR)
 
-    print(f"Testing Agent (Full Control + No Action Repeat)...")
+    print("Testing Agent (Full Control + No Action Repeat)...")
 
     for episode in range(NUM_EPISODES):
         obs, _ = env.reset()
@@ -170,8 +170,8 @@ def main():
             telemetry_data['rewards'].append(reward)
             try:
                 telemetry_data['r_pred'].append(float(r_pred_val.item()))
-            except:
-                telemetry_data['r_pred'].append(float(r_pred_val[0]))
+            except Exception:
+                telemetry_data["r_pred"].append(float(r_pred_val[0]))
             
             if term or trunc:
                 break

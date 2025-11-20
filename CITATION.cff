@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+      - family-names: Tiraspolsky
+        given-names: Sergey
+title: "World Models (JAX)"
+version: 0.1.0
+date-released: 2025-11-20
+url: "https://github.com/Sha01in/world-models-jax"
+abstract: "A JAX/Equinox implementation of World Models (Ha & Schmidhuber, 2018) applied to the Gymnasium CarRacing-v3 environment."
+license: MIT
+

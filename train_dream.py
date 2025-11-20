@@ -4,7 +4,6 @@ import numpy as np
 import equinox as eqx
 import cma
 import glob
-import os
 import time
 from src.rnn import MDNRNN
 from src.controller import get_action

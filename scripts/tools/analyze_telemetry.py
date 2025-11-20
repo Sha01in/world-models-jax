@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 def analyze_episode(ep_num):
     try:
@@ -8,11 +7,11 @@ def analyze_episode(ep_num):
         print(f"Episode {ep_num} not found.")
         return
 
-    actions = data['actions'] # (T, 3)
-    rewards = data['rewards'] # (T,)
-    z = data['z']             # (T, 32)
-    surprise = data['surprise'] # (T,)
-    r_pred = data['r_pred']     # (T,)
+    actions = data["actions"]  # (T, 3)
+    rewards = data["rewards"]  # (T,)
+    # z = data['z']             # (T, 32)
+    surprise = data["surprise"]  # (T,)
+    r_pred = data["r_pred"]  # (T,)
 
     print(f"\n--- Analysis of Episode {ep_num} ---")
     print(f"Total Score: {np.sum(rewards):.2f}")

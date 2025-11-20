@@ -2,7 +2,6 @@ import gymnasium as gym
 import numpy as np
 import os
 from tqdm import tqdm
-import cv2
 
 # Settings
 NUM_ENVS = 16           # Number of parallel workers (adjust to your CPU cores)

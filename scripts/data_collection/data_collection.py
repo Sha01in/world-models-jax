@@ -89,7 +89,7 @@ def collect_data():
         )
         
     env.close()
-    print(f"Data collection complete.")
+    print("Data collection complete.")
     print(f"Quality Check: {positive_reward_frames / total_frames * 100:.2f}% of frames had positive reward.")
     print("(Target is > 5-10% to give the RNN something to learn)")
 

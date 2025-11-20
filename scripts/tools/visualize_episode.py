@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-import math
 
 # Settings
 EPISODE_NUM = 4
@@ -95,8 +94,9 @@ def create_annotated_grid():
         # Red = Crash, Green = Good, Yellow = Delusion
         status_color = 'black'
         if t_reward < -0.05:
-            status_color = 'red'
-            if t_r_pred > 0: status_color = 'orange' # Delusion
+            status_color = "red"
+            if t_r_pred > 0:
+                status_color = "orange"  # Delusion
         elif t_reward > 0.1:
             status_color = 'green'
             
