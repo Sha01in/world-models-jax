@@ -5,6 +5,7 @@ import optax
 import numpy as np
 import glob
 import os
+import sys
 from src.rnn import MDNRNN
 from tqdm import tqdm
 
@@ -21,6 +22,14 @@ EPOCHS = 20
 
 def load_dataset():
     files = glob.glob(DATA_DIR)
+    if not files:
+        print(f"\n[ERROR] No processed data found in 'data/series/'")
+        print("You must collect and process data before training the RNN.")
+        print("1. Run: python collect_data.py")
+        print("2. Run: python run_vae_training.py")
+        print("3. Run: python process_data.py\n")
+        sys.exit(1)
+        
     print(f"Found {len(files)} processed episodes.")
     
     all_z = []
@@ -129,6 +138,9 @@ def train():
     
     steps_per_epoch = num_samples // BATCH_SIZE
     
+    if not os.path.exists(CHECKPOINT_DIR):
+        os.makedirs(CHECKPOINT_DIR)
+
     for epoch in range(EPOCHS):
         key, subkey = jax.random.split(key)
         perms = jax.random.permutation(subkey, num_samples)
