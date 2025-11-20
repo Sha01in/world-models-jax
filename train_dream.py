@@ -69,7 +69,7 @@ def main():
             # C. Sample Next Z
             k_key, z_key, next_key = jax.random.split(current_key, 3)
             
-            # --- FIX: Squeeze the last dimension ---
+            # Squeeze to match expected shape (Batch, 5)
             # log_pi comes in as (Batch, 5, 1). We need (Batch, 5)
             log_pi_flat = log_pi.squeeze(-1) 
             

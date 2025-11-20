@@ -7,7 +7,7 @@
 
 A JAX/Equinox implementation of [World Models (Ha & Schmidhuber, 2018)](https://worldmodels.github.io/) applied to the Gymnasium `CarRacing-v3` environment.
 
-![Agent View](debug_grid.png)
+![Agent View](docs/debug_grid.png)
 *(Visualization of Real Observation vs. VAE Reconstruction vs. RNN Dream)*
 
 ## 1. Overview
@@ -17,6 +17,22 @@ The agent consists of three independent components trained sequentially:
 1.  **Vision (V):** A Convolutional VAE that compresses the 64x64x3 game frame into a 32-dimensional latent vector ($z$).
 2.  **Memory (M):** An MDN-RNN (LSTM + Mixture Density Network) that predicts the next latent state ($z_{t+1}$) and reward ($r_{t+1}$) given the current state and action. This serves as the agent's "Dream" world.
 3.  **Controller (C):** A simple linear model that maps the concatenated state $[z_t, h_t]$ to actions. It is evolved using **CMA-ES** inside the RNN's dream environment.
+
+### Project Structure
+```
+.
+├── src/                 # Core model definitions (JAX/Equinox)
+│   ├── vae.py           # VAE architecture (Vision)
+│   ├── rnn.py           # MDN-RNN architecture (Memory)
+│   └── controller.py    # Linear Controller (Policy)
+├── scripts/             # Helper tools
+│   ├── data_collection/ # Distributed rollout collection
+│   └── tools/           # Debugging & visualization
+├── train_dream.py       # Evolution Strategy (CMA-ES) loop
+├── train_rnn.py         # World Model training script
+├── process_data.py      # Data preprocessing pipeline
+└── test_agent.py        # Final agent evaluation
+```
 
 ## Sim2Real Strategy: Asymmetric Loss
 
@@ -135,6 +151,8 @@ To achieve the score of **843.0**, I used the following dataset composition (~4,
 
 *   **Episode Score:** 843.0 (Solved)
 *   **Behavior:** Robust navigation of sharp turns; recovery from minor slips.
+
+*Note on Reproducibility: While the training scripts use fixed seeds for JAX operations (`PRNGKey(0)`), the data collection process (Sim2Real) involves real-time interaction with the Box2D physics engine, which can have non-deterministic elements across different hardware/OS. Exact score matching may vary, but the general learning curve should be consistent.*
 
 ## 6. Credits
 *   Original Paper: [World Models](https://arxiv.org/abs/1803.10122) by David Ha and Juergen Schmidhuber.

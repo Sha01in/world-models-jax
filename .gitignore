@@ -38,3 +38,4 @@ videos/
 # Keep pyproject.toml and uv.lock so others can reproduce your env
 # !pyproject.toml
 # !uv.lock
+GEMINI.md
