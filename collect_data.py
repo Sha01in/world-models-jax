@@ -1,71 +1,102 @@
-import sys
+import gymnasium as gym
+import numpy as np
+import time
+import argparse
 import os
-import subprocess
+import multiprocessing as mp
+import cv2
+from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
-def print_menu():
-    print("\n=== World Models Data Collection ===")
-    print("-- Phase 1: Initial Bootstrap --")
-    print("1. Random (Brownian Noise)     [Baseline]")
-    print("2. Smart Random (Score > 5)    [Better Baseline]")
-    print("3. Heuristic (Good Data)       [Teacher/Expert]")
-    print("4. Failures (Crash Data)       [Negative Examples]")
-    
-    print("\n-- Phase 2: Robustness --")
-    print("5. Aggressive (Speed Limits)   [Friction Limits]")
-    print("6. Recovery (Heuristic + Noise)[Recovering from Errors]")
-    
-    print("\n-- Phase 3: Active Learning --")
-    print("7. Iterative Failures          [Previous Agent Failures]")
-    print("8. On-Policy                   [Current Agent Failures]")
-    
-    print("\n0. Exit")
-    print("====================================")
+# --- Settings (Defaults) ---
+NUM_WORKERS = 12        # Default, but can be lower
+NUM_EPISODES = 500      # Total episodes needed
+MAX_STEPS = 1000
+DATA_DIR = "data/rollouts"
+IMG_SIZE = 64
 
-def run_script(script_name):
-    script_path = os.path.join("scripts", "data_collection", script_name)
-    if not os.path.exists(script_path):
-        print(f"Error: Script not found at {script_path}")
-        return
-    
-    print(f"\n>>> Launching {script_name}...\n")
+def collect_episode(seed):
     try:
-        # Run the script as a subprocess
-        # Ensure the root directory is in PYTHONPATH so imports like 'from src...' work
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.getcwd() + os.pathsep + env.get("PYTHONPATH", "")
+        # Unique seed per process
+        np.random.seed(seed)
         
-        subprocess.run([sys.executable, script_path], check=True, env=env)
-    except subprocess.CalledProcessError as e:
-        print(f"\nError: Data collection failed with code {e.returncode}")
-    except KeyboardInterrupt:
-        print("\nData collection interrupted.")
+        # Create Env
+        # We use render_mode="rgb_array" to get pixels
+        env = gym.make("CarRacing-v3", render_mode="rgb_array")
+        obs, _ = env.reset()
+        
+        obs_seq = []
+        action_seq = []
+        reward_seq = []
+        done_seq = []
+        
+        for t in range(MAX_STEPS):
+            # Resize Observation to 64x64
+            obs_small = cv2.resize(obs, (IMG_SIZE, IMG_SIZE))
+            obs_seq.append(obs_small)
+            
+            # Action Strategy: Brownian Noise
+            # Action: [Steer (-1, 1), Gas (0, 1), Brake (0, 1)]
+            if t == 0:
+                action = np.array([0.0, 0.0, 0.0])
+            else:
+                # Previous action + noise
+                noise = np.random.randn(3) * 0.1
+                action = action_seq[-1] + noise
+                
+            # Clip
+            action[0] = np.clip(action[0], -1.0, 1.0)
+            action[1] = np.clip(action[1], 0.0, 1.0)
+            action[2] = np.clip(action[2], 0.0, 1.0)
+            
+            action_seq.append(action)
+            
+            # Step
+            obs, reward, term, trunc, _ = env.step(action)
+            reward_seq.append(reward)
+            done_seq.append(term or trunc)
+            
+            if term or trunc:
+                break
+        
+        env.close()
+        
+        # Save Data
+        # Use seed as unique ID
+        save_path = os.path.join(DATA_DIR, f"ep_{seed}.npz")
+        np.savez_compressed(save_path,
+                            obs=np.array(obs_seq),
+                            actions=np.array(action_seq),
+                            rewards=np.array(reward_seq),
+                            dones=np.array(done_seq))
+        return True
+    except Exception as e:
+        print(f"Worker {seed} failed: {e}")
+        return False
 
 def main():
-    while True:
-        print_menu()
-        choice = input("Select Data Mode (0-8): ").strip()
+    parser = argparse.ArgumentParser(description="Collect Data (Random Policy)")
+    parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="Total episodes to collect")
+    parser.add_argument("--workers", type=int, default=NUM_WORKERS, help="Number of parallel workers")
+    args = parser.parse_args()
+
+    episodes = args.episodes
+    workers = min(args.workers, mp.cpu_count()) # Don't exceed physical cores
+
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+    
+    print(f"Starting Data Collection: {episodes} episodes with {workers} workers.")
+    
+    # Use a set of seeds as task IDs
+    seeds = list(range(int(time.time()), int(time.time()) + episodes))
+    
+    # Parallel Execution
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        results = list(tqdm(executor.map(collect_episode, seeds), total=episodes))
         
-        if choice == '0':
-            print("Exiting.")
-            break
-        elif choice == '1':
-            run_script("data_collection_random.py")
-        elif choice == '2':
-            run_script("data_collection_smart.py")
-        elif choice == '3':
-            run_script("data_collection_heuristic.py")
-        elif choice == '4':
-            run_script("data_collection_failures.py")
-        elif choice == '5':
-            run_script("data_collection_aggressive.py")
-        elif choice == '6':
-            run_script("data_collection_recovery.py")
-        elif choice == '7':
-            run_script("data_collection_iterative.py")
-        elif choice == '8':
-            run_script("data_collection_on_policy.py")
-        else:
-            print("Invalid choice. Please try again.")
+    success_count = sum(results)
+    print(f"Collection Complete. Success: {success_count}/{episodes}")
 
 if __name__ == "__main__":
     main()

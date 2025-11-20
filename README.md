@@ -89,6 +89,11 @@ pip install -U "jax[cuda12]"
 # pip install -U "jax-metal"
 ```
 
+To verify the entire pipeline runs correctly (without waiting hours for training), run the integration test:
+```bash
+python scripts/tools/run_pipeline_test.py
+```
+
 ## 3. Usage Pipeline
 
 The World Model is trained in a strict pipeline. Each step depends on the previous one.

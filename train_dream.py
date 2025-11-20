@@ -7,10 +7,11 @@ import glob
 import time
 import os
 import sys
+import argparse
 from src.rnn import MDNRNN
 from src.controller import get_action
 
-# Settings
+# Settings (Defaults)
 POPULATION_SIZE = 256       
 BATCH_SIZE = 2048           
 DREAM_LENGTH = 1000         
@@ -58,12 +59,25 @@ def load_initial_zs():
     return np.concatenate(all_z, axis=0)
 
 def main():
+    parser = argparse.ArgumentParser(description="Train Controller in Dream World")
+    parser.add_argument("--generations", type=int, default=NUM_GENERATIONS, help="Number of generations to evolve")
+    parser.add_argument("--pop_size", type=int, default=POPULATION_SIZE, help="Population size")
+    parser.add_argument("--dream_length", type=int, default=DREAM_LENGTH, help="Steps per dream episode")
+    args = parser.parse_args()
+
+    # Override globals (optional, or pass args)
+    population_size = args.pop_size
+    num_generations = args.generations
+    dream_length = args.dream_length
+
     # 1. Load Resources
     rnn = load_rnn()
     real_zs = load_initial_zs()
     real_zs = jnp.array(real_zs)
     
     # 2. Define The Dream Engine (JIT Compiled)
+    # IMPORTANT: JIT compilation depends on static shapes. 
+    # If dream_length changes, this needs to re-compile.
     @jax.jit
     def run_dream_batch(params_batch, start_z, key):
         # Initialize LSTM State
@@ -118,27 +132,27 @@ def main():
         final_carry, _ = jax.lax.scan(step_fn, 
                                       (start_z, h, c, init_active, init_reward, key), 
                                       None, 
-                                      length=DREAM_LENGTH)
+                                      length=dream_length) # Use dynamic arg
         
         _, _, _, _, final_rewards, _ = final_carry
         return final_rewards
 
     # 3. Setup CMA-ES
     num_params = (ACTION_DIM * INPUT_DIM) + ACTION_DIM
-    print(f"Dream Training: {POPULATION_SIZE} agents, {DREAM_LENGTH} steps.")
+    print(f"Dream Training: {population_size} agents, {dream_length} steps, {num_generations} gens.")
     
-    es = cma.CMAEvolutionStrategy(num_params * [0], 0.1, {'popsize': POPULATION_SIZE, 'verbose': -1})
+    es = cma.CMAEvolutionStrategy(num_params * [0], 0.1, {'popsize': population_size, 'verbose': -1})
     
     print("Starting Dream...")
     
-    for gen in range(NUM_GENERATIONS):
+    for gen in range(num_generations):
         start_time = time.time()
         
         solutions = es.ask()
         candidates = jnp.array(solutions)
         
         key = jax.random.PRNGKey(gen)
-        rand_indices = jax.random.randint(key, (POPULATION_SIZE,), 0, len(real_zs))
+        rand_indices = jax.random.randint(key, (population_size,), 0, len(real_zs))
         start_zs = real_zs[rand_indices]
         
         rewards = run_dream_batch(candidates, start_zs, key)

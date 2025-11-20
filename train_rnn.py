@@ -6,10 +6,11 @@ import numpy as np
 import glob
 import os
 import sys
+import argparse
 from src.rnn import MDNRNN
 from tqdm import tqdm
 
-# Settings
+# Settings (Defaults)
 DATA_DIR = "data/series/*.npz"
 CHECKPOINT_DIR = "checkpoints"
 MODEL_PATH = os.path.join(CHECKPOINT_DIR, "rnn.eqx")
@@ -111,6 +112,14 @@ def make_step(model, opt_state, inputs, tz, tr, td, key, optimizer):
     return model, opt_state, loss, aux
 
 def train():
+    parser = argparse.ArgumentParser(description="Train MDN-RNN World Model")
+    parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs to train")
+    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE, help="Batch size")
+    args = parser.parse_args()
+
+    epochs = args.epochs
+    batch_size = args.batch_size
+
     Zs, Actions, Rewards, Dones = load_dataset()
     
     # Prepare Inputs (t) and Targets (t+1)
@@ -136,19 +145,19 @@ def train():
     
     print(f"Starting RNN (Dream) training on {num_samples} sequences...")
     
-    steps_per_epoch = num_samples // BATCH_SIZE
+    steps_per_epoch = num_samples // batch_size
     
     if not os.path.exists(CHECKPOINT_DIR):
         os.makedirs(CHECKPOINT_DIR)
 
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         key, subkey = jax.random.split(key)
         perms = jax.random.permutation(subkey, num_samples)
         
         epoch_loss = 0
-        with tqdm(range(steps_per_epoch), desc=f"Epoch {epoch+1}/{EPOCHS}", unit="batch") as pbar:
+        with tqdm(range(steps_per_epoch), desc=f"Epoch {epoch+1}/{epochs}", unit="batch") as pbar:
             for i in pbar:
-                idx = perms[i*BATCH_SIZE : (i+1)*BATCH_SIZE]
+                idx = perms[i*batch_size : (i+1)*batch_size]
                 model, opt_state, loss, (l_mdn, l_rew, l_done) = make_step(
                     model, opt_state, 
                     inputs[idx], targets_z[idx], targets_r[idx], targets_d[idx], 

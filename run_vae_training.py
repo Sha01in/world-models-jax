@@ -6,6 +6,7 @@ import numpy as np
 import glob
 import os
 import random
+import argparse
 from tqdm import tqdm
 from src.vae import VAE
 
@@ -16,7 +17,7 @@ DATA_PATTERN_BAD = "data/rollouts_bad/*.npz"
 CHECKPOINT_DIR = "checkpoints"
 MODEL_PATH = os.path.join(CHECKPOINT_DIR, "vae.eqx")
 
-# Training Hyperparameters
+# Training Hyperparameters (Defaults)
 LATENT_DIM = 32
 LEARNING_RATE = 1e-4
 BATCH_SIZE = 128
@@ -66,6 +67,14 @@ def load_chunk(files):
 
 # --- Main Loop ---
 def main():
+    parser = argparse.ArgumentParser(description="Train VAE")
+    parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs to train")
+    parser.add_argument("--batch_size", type=int, default=BATCH_SIZE, help="Batch size")
+    args = parser.parse_args()
+
+    epochs = args.epochs
+    batch_size = args.batch_size
+
     # 1. Find Files
     files_good = glob.glob(DATA_PATTERN_GOOD)
     files_bad = glob.glob(DATA_PATTERN_BAD)
@@ -95,7 +104,7 @@ def main():
     if not os.path.exists(CHECKPOINT_DIR):
         os.makedirs(CHECKPOINT_DIR)
 
-    for epoch in range(EPOCHS):
+    for epoch in range(epochs):
         # Shuffle files every epoch so chunks are different
         random.shuffle(all_files)
         
@@ -105,7 +114,7 @@ def main():
         # Progress bar for the chunks
         num_chunks = (total_files + FILES_PER_CHUNK - 1) // FILES_PER_CHUNK
         
-        with tqdm(total=num_chunks, desc=f"Epoch {epoch+1}/{EPOCHS}") as pbar:
+        with tqdm(total=num_chunks, desc=f"Epoch {epoch+1}/{epochs}") as pbar:
             for i in range(0, total_files, FILES_PER_CHUNK):
                 # A. Load Chunk
                 chunk_files = all_files[i : i + FILES_PER_CHUNK]
@@ -116,7 +125,7 @@ def main():
                 
                 # B. Train on Chunk
                 num_samples = data_chunk.shape[0]
-                steps_in_chunk = num_samples // BATCH_SIZE
+                steps_in_chunk = num_samples // batch_size
                 
                 # Shuffle the frames in memory
                 perms = np.random.permutation(num_samples)
@@ -124,7 +133,7 @@ def main():
                 
                 for j in range(steps_in_chunk):
                     # Get batch (uint8)
-                    batch_uint8 = data_chunk[j*BATCH_SIZE : (j+1)*BATCH_SIZE]
+                    batch_uint8 = data_chunk[j*batch_size : (j+1)*batch_size]
                     
                     # Convert to float32/Normalize ON THE FLY (Saves RAM)
                     batch = jnp.array(batch_uint8, dtype=jnp.float32) / 255.0
