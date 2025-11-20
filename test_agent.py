@@ -5,11 +5,12 @@ import jax.numpy as jnp
 import equinox as eqx
 import cv2
 import os
+import argparse
 from src.vae import VAE
 from src.rnn import MDNRNN
 from src.controller import get_action
 
-# Settings
+# Settings (Defaults)
 NUM_EPISODES = 5
 VIDEO_DIR = "videos"
 LATENT_DIM = 32
@@ -35,6 +36,14 @@ def load_models():
     return vae, rnn, params
 
 def main():
+    parser = argparse.ArgumentParser(description="Test Trained Agent")
+    parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="Number of episodes to test")
+    parser.add_argument("--no_video", action="store_true", help="Disable video saving (faster)")
+    args = parser.parse_args()
+
+    num_episodes = args.episodes
+    save_video = not args.no_video
+
     vae, rnn, controller_params = load_models()
     
     @jax.jit
@@ -66,13 +75,15 @@ def main():
         
         return h_new, c_new, expected_z, r_pred
 
+    # Use render_mode="rgb_array" to get pixels
     env = gym.make("CarRacing-v3", render_mode="rgb_array")
-    if not os.path.exists(VIDEO_DIR):
+    
+    if save_video and not os.path.exists(VIDEO_DIR):
         os.makedirs(VIDEO_DIR)
 
-    print("Testing Agent (Full Control + No Action Repeat)...")
+    print(f"Testing Agent: {num_episodes} episodes...")
 
-    for episode in range(NUM_EPISODES):
+    for episode in range(num_episodes):
         obs, _ = env.reset()
         h = jnp.zeros(HIDDEN_SIZE)
         c = jnp.zeros(HIDDEN_SIZE)
@@ -107,29 +118,28 @@ def main():
                 surprise = jnp.mean((z - prev_expected_z) ** 2)
                 total_surprise += surprise
             
-            # Record Video (All Episodes)
-            # 1. Real Observation (already in obs_small)
-            
-            # 2. VAE Reconstruction
-            recon_img = jnp.transpose(recon_jax, (1, 2, 0))
-            recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
-            
-            # 3. RNN Dream (Prediction for NEXT frame, shifted by 1 for vis?)
-            # Actually, prev_expected_z is the prediction for the CURRENT frame made 1 step ago.
-            if prev_expected_z is not None:
-                dream_jax = decode_from_z(prev_expected_z)
-                dream_img = jnp.transpose(dream_jax, (1, 2, 0))
-                dream_img = jnp.array(dream_img * 255.0, dtype=jnp.uint8)
-            else:
-                dream_img = jnp.zeros_like(recon_img)
+            # Record Video
+            if save_video:
+                # 1. Real Observation (already in obs_small)
+                # 2. VAE Reconstruction
+                recon_img = jnp.transpose(recon_jax, (1, 2, 0))
+                recon_img = jnp.array(recon_img * 255.0, dtype=jnp.uint8)
+                
+                # 3. RNN Dream (Prediction for NEXT frame, shifted by 1 for vis?)
+                if prev_expected_z is not None:
+                    dream_jax = decode_from_z(prev_expected_z)
+                    dream_img = jnp.transpose(dream_jax, (1, 2, 0))
+                    dream_img = jnp.array(dream_img * 255.0, dtype=jnp.uint8)
+                else:
+                    dream_img = jnp.zeros_like(recon_img)
 
-            # Combine: [Real | Recon | Dream]
-            combined = np.hstack((obs_small, np.array(recon_img), np.array(dream_img)))
-            frames_combined.append(combined)
-            
-            # Add to filmstrip every 20 frames
-            if t % 20 == 0:
-                filmstrip_frames.append(combined)
+                # Combine: [Real | Recon | Dream]
+                combined = np.hstack((obs_small, np.array(recon_img), np.array(dream_img)))
+                frames_combined.append(combined)
+                
+                # Add to filmstrip every 20 frames
+                if t % 20 == 0:
+                    filmstrip_frames.append(combined)
 
             # --- LOGIC START ---
             # 1. WARMUP (Frames 0-50): Drive Straight
@@ -148,13 +158,6 @@ def main():
             h_norm = jnp.linalg.norm(h)
             if t % 100 == 0:
                  print(f"T={t} | Steer: {current_action[0]:.2f} | Gas: {current_action[1]:.2f} | H-Norm: {h_norm:.2f}")
-            
-            # Store Telemetry (Need r_pred which is computed *after* this step for *next* step?)
-            # Actually rnn_next gives prediction for t+1.
-            # So prev_expected_z corresponds to prediction made at t-1 for t.
-            # But we don't have r_pred stored from previous step easily unless we change loop vars.
-            # Let's append a dummy for now or restructure slightly? 
-            # Actually, we call rnn_next at end of loop.
             
             obs, reward, term, trunc, _ = env.step(current_action)
             total_reward += reward
@@ -189,10 +192,9 @@ def main():
                  h_norm=np.array(telemetry_data['h_norm']),
                  surprise=np.array(telemetry_data['surprise']),
                  r_pred=np.array(telemetry_data['r_pred']))
-        print(f"Saved telemetry/ep_{episode+1}.npz")
         
         # Save Video per episode
-        if frames_combined:
+        if save_video and frames_combined:
             height, width, _ = frames_combined[0].shape
             video_path = os.path.join(VIDEO_DIR, f"final_agent_ep{episode+1}.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
