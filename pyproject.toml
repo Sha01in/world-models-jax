@@ -1,0 +1,21 @@
+[project]
+name = "world-models-jax"
+version = "0.1.0"
+description = "JAX implementation of World Models on CarRacing-v3"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "jax",
+    "jaxlib",
+    "equinox",
+    "optax",
+    "gymnasium[box2d]",
+    "cma",
+    "opencv-python",
+    "numpy",
+    "tqdm",
+    "matplotlib",
+    "imageio",
+    "ipykernel"
+]
+

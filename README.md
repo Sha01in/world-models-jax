@@ -2,7 +2,7 @@
 
 A JAX/Equinox implementation of [World Models (Ha & Schmidhuber, 2018)](https://worldmodels.github.io/) applied to the Gymnasium `CarRacing-v3` environment.
 
-![Agent View](debug_grid_ep4.png)
+![Agent View](debug_grid.png)
 *(Visualization of Real Observation vs. VAE Reconstruction vs. RNN Dream)*
 
 ## 1. Overview
@@ -20,12 +20,18 @@ The agent consists of three independent components trained sequentially:
 *   CUDA-enabled GPU (Recommended)
 
 ### Setup
+Using [uv](https://github.com/astral-sh/uv) (Recommended):
 ```bash
 # Clone the repo
 git clone https://github.com/yourusername/world-models-jax.git
 cd world-models-jax
 
-# Install dependencies
+# Initialize and sync environment
+uv sync
+```
+
+Or using standard pip:
+```bash
 pip install -r requirements.txt
 ```
 
@@ -34,12 +40,14 @@ pip install -r requirements.txt
 The World Model is trained in a strict pipeline. Each step depends on the previous one.
 
 ### Step 1: Data Collection
-Collect initial random data to train the Vision model.
+Collect initial data to train the Vision model.
 ```bash
 python collect_data.py
 # Select Option 1: Random (Brownian Noise)
 ```
-*Goal: ~10,000 episodes.*
+*Goal: ~2,000 - 5,000 episodes.*
+
+*Note: Unlike the original paper which suggests 10,000 random episodes, we use a **Curriculum Learning** approach (see Section 4). We start with a smaller random dataset, train the agent, find where it fails, and then collect specific "failure" data. This is more efficient than random sampling.*
 
 ### Step 2: Train Vision (VAE)
 Train the VAE to compress images.
@@ -74,12 +82,21 @@ python test_agent.py
 
 ## 4. Iterative Improvement (Sim2Real2Sim)
 
-To achieve high scores (>800), you must close the **Sim2Real Gap**. The RNN often hallucinates that driving on grass is safe. To fix this:
+To achieve high scores (>800) without needing massive random datasets, we use an iterative data collection strategy:
 
-1.  **Collect Failure Data:** Run `collect_data.py` (Option 5: On-Policy) to collect data where the agent fails.
-2.  **Re-Process Data:** Run `process_data.py` to include the new data.
-3.  **Retrain RNN:** Run `train_rnn.py`. The model will learn that those states lead to low rewards.
-4.  **Retrain Controller:** Run `train_dream.py` with the smarter World Model.
+1.  **Recovery Data:** (Option 3) Heuristic driver with noise to teach the RNN how to recover from bad states.
+2.  **Aggressive Data:** (Option 4) Heuristic driver that drives too fast, teaching the RNN about friction limits.
+3.  **On-Policy Failures:** (Option 5) Run your current agent, let it crash, and add that data to the training set.
+
+**Workflow:**
+1.  Collect ~2k Random Episodes -> Train V, M, C.
+2.  Observe Failures (e.g., Agent spins out on sharp turns).
+3.  Collect ~500 "On-Policy" or "Aggressive" episodes.
+4.  Retrain M (RNN) with the new data.
+5.  Retrain C (Controller).
+6.  Repeat.
+
+This **Active Learning** loop fixes the "Sim2Real Gap" (where the RNN hallucinates that driving on grass is safe) much faster than simply adding more random data.
 
 ## 5. Results
 
