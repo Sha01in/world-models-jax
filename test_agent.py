@@ -14,6 +14,7 @@ from src.controller import get_action
 NUM_EPISODES = 5
 VIDEO_DIR = "videos"
 DIAGNOSTICS_DIR = "diagnostics"
+VIDEO_SCALE = 6
 LATENT_DIM = 32
 HIDDEN_SIZE = 256
 ACTION_DIM = 3
@@ -88,7 +89,9 @@ def main():
     print(f"Testing Agent: {num_episodes} episodes...")
 
     for episode in range(num_episodes):
-        obs, _ = env.reset()
+        # Generate a random seed for this episode
+        seed = np.random.randint(0, 1000000)
+        obs, _ = env.reset(seed=seed)
         h = jnp.zeros(HIDDEN_SIZE)
         c = jnp.zeros(HIDDEN_SIZE)
         total_reward = 0
@@ -190,6 +193,7 @@ def main():
         if not os.path.exists("telemetry"):
             os.makedirs("telemetry")
         np.savez(f"telemetry/ep_{episode+1}.npz", 
+                 seed=seed,
                  actions=np.array(telemetry_data['actions']),
                  rewards=np.array(telemetry_data['rewards']),
                  z=np.array(telemetry_data['z']),
@@ -199,14 +203,33 @@ def main():
         
         # Save Video per episode
         if save_video and frames_combined:
-            height, width, _ = frames_combined[0].shape
+            h_orig, w_orig, _ = frames_combined[0].shape
+            h_scaled, w_scaled = h_orig * VIDEO_SCALE, w_orig * VIDEO_SCALE
+            
             video_path = os.path.join(VIDEO_DIR, f"final_agent_ep{episode+1}.mp4")
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v') 
-            video = cv2.VideoWriter(video_path, fourcc, 30, (width, height))
-            for f in frames_combined:
-                video.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
-            video.release()
-            print(f"Video saved to {video_path}")
+            
+            # Try H.264 (avc1) for better quality, fallback to mp4v
+            fourcc_names = ['avc1', 'mp4v']
+            video = None
+            
+            for name in fourcc_names:
+                fourcc = cv2.VideoWriter_fourcc(*name)
+                # CarRacing runs at 50fps
+                temp_video = cv2.VideoWriter(video_path, fourcc, 50, (w_scaled, h_scaled))
+                if temp_video.isOpened():
+                    video = temp_video
+                    print(f"Using codec: {name}")
+                    break
+            
+            if video is None:
+                 print("Error: Could not create video writer.")
+            else:
+                for f in frames_combined:
+                    # Nearest neighbor scaling to preserve pixel sharpness
+                    f_scaled = cv2.resize(f, (w_scaled, h_scaled), interpolation=cv2.INTER_NEAREST)
+                    video.write(cv2.cvtColor(f_scaled, cv2.COLOR_RGB2BGR))
+                video.release()
+                print(f"Video saved to {video_path} ({w_scaled}x{h_scaled})")
             
             # Save Filmstrip per episode
             if len(filmstrip_frames) > 0:
