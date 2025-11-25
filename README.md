@@ -64,15 +64,15 @@ git clone https://github.com/Sha01in/world-models-jax.git
 cd world-models-jax
 
 # Initialize and sync environment
+# This automatically installs JAX with CUDA support on Linux/WSL2
 uv sync
 
-# IMPORTANT: Install JAX with CUDA support (if you have an NVIDIA GPU)
-# See: https://jax.readthedocs.io/en/latest/installation.html
-uv pip install "jax[cuda12]"
-
-# For Mac (Apple Silicon) users:
+# For Mac (Apple Silicon) users who want Metal acceleration:
 # uv pip install "jax-metal"
 ```
+
+> [!IMPORTANT]
+> **Windows Users:** To enable GPU support, you **must** use [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install). Native Windows installations will default to CPU-only mode because JAX does not support GPU on Windows directly.
 
 ### Verify Installation
 Check if JAX can access your GPU:
@@ -83,11 +83,8 @@ python scripts/tools/check_gpu.py
 Or using standard pip:
 ```bash
 pip install -r requirements.txt
-# IMPORTANT: Install JAX with CUDA support explicitly
-pip install -U "jax[cuda12]"
-
-# For Mac (Apple Silicon) users:
-# pip install -U "jax-metal"
+# Note: requirements.txt is generated for Linux/CUDA. 
+# On Mac/Windows, you may need to manually adjust JAX versions.
 ```
 
 To verify the entire pipeline runs correctly (without waiting hours for training), run the integration test:

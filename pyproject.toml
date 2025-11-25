@@ -5,7 +5,8 @@ description = "JAX implementation of World Models on CarRacing-v3"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "jax[cuda12]",
+    "jax[cuda12]; sys_platform == 'linux'",
+    "jax; sys_platform != 'linux'",
     "equinox",
     "optax",
     "gymnasium[box2d]",
