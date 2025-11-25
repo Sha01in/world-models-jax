@@ -8,11 +8,11 @@ import os
 # Default Settings
 DEFAULT_EPISODE_NUM = 4
 
-def get_paths(episode_num):
+def get_paths(episode_num, env_name):
     return {
-        "video": f"videos/final_agent_ep{episode_num}.mp4",
-        "telemetry": f"telemetry/ep_{episode_num}.npz",
-        "output": f"diagnostics/debug_grid_ep{episode_num}.png"
+        "video": f"videos/{env_name}/final_agent_ep{episode_num}.mp4",
+        "telemetry": f"telemetry/{env_name}/ep_{episode_num}.npz",
+        "output": f"diagnostics/{env_name}/debug_grid_ep{episode_num}.png"
     }
 
 # Grid Settings
@@ -20,8 +20,8 @@ ROWS = 5
 COLS = 4
 TOTAL_FRAMES_TO_SHOW = ROWS * COLS
 
-def create_annotated_grid(episode_num):
-    paths = get_paths(episode_num)
+def create_annotated_grid(episode_num, env_name):
+    paths = get_paths(episode_num, env_name)
     video_path = paths["video"]
     telemetry_path = paths["telemetry"]
     output_path = paths["output"]
@@ -118,7 +118,14 @@ def create_annotated_grid(episode_num):
             status_color = 'green'
             
         # Title
-        title = f"T={idx}\nAct:[{t_action[0]:.2f}, {t_action[1]:.2f}, {t_action[2]:.2f}]\n"
+        title = f"T={idx}\n"
+        if len(t_action) == 3:
+            title += f"Act:[{t_action[0]:.2f}, {t_action[1]:.2f}, {t_action[2]:.2f}]\n"
+        else:
+            # Generic printing
+            act_str = ", ".join([f"{x:.2f}" for x in t_action])
+            title += f"Act:[{act_str}]\n"
+            
         title += f"R: {t_reward:.2f} | Pred: {t_r_pred:.2f}\nSurprise: {t_surprise:.4f}"
         
         ax.set_title(title, fontsize=9, color=status_color, fontweight='bold')
@@ -127,7 +134,7 @@ def create_annotated_grid(episode_num):
         plt.setp(ax.spines.values(), color=status_color, linewidth=3)
 
     plt.tight_layout()
-    plt.suptitle(f"Episode {episode_num} Diagnostics: Real | Recon | Dream", fontsize=16, y=1.02)
+    plt.suptitle(f"Episode {episode_num} Diagnostics ({env_name}): Real | Recon | Dream", fontsize=16, y=1.02)
     plt.savefig(output_path, bbox_inches='tight')
     cap.release()
     print(f"Saved diagnostic grid to {output_path}")
@@ -135,5 +142,6 @@ def create_annotated_grid(episode_num):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create Diagnostic Grid from Episode")
     parser.add_argument("--episode", type=int, default=DEFAULT_EPISODE_NUM, help="Episode number to visualize")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     args = parser.parse_args()
-    create_annotated_grid(args.episode)
+    create_annotated_grid(args.episode, args.env)

@@ -10,6 +10,7 @@ import sys
 import argparse
 from src.rnn import MDNRNN
 from src.controller import get_action
+from src.config import get_config
 
 # Settings (Defaults)
 POPULATION_SIZE = 256       
@@ -17,37 +18,27 @@ BATCH_SIZE = 2048
 DREAM_LENGTH = 1000         
 NUM_GENERATIONS = 100       
 TEMPERATURE = 1.25          
-
-# Model Paths
-RNN_PATH = "checkpoints/rnn.eqx"
-BEST_CONTROLLER_PATH = "checkpoints/controller_dream.npz"
-
-# Model Configs
-LATENT_DIM = 32
-HIDDEN_SIZE = 256
-ACTION_DIM = 3
-INPUT_DIM = LATENT_DIM + HIDDEN_SIZE
 NUM_GAUSSIANS = 5
 
-def load_rnn():
-    if not os.path.exists(RNN_PATH):
-        print(f"\n[ERROR] Checkpoint not found: {RNN_PATH}")
+def load_rnn(rnn_path, config):
+    if not os.path.exists(rnn_path):
+        print(f"\n[ERROR] Checkpoint not found: {rnn_path}")
         print("You must train the RNN before the Dreamer can run.")
-        print("Run: python train_rnn.py\n")
+        print("Run: python train_rnn.py --env <env_name>\n")
         sys.exit(1)
         
     key = jax.random.PRNGKey(0)
-    model = MDNRNN(latent_dim=LATENT_DIM, action_dim=ACTION_DIM, 
-                   hidden_size=HIDDEN_SIZE, key=key)
-    model = eqx.tree_deserialise_leaves(RNN_PATH, model)
+    model = MDNRNN(latent_dim=config.latent_dim, action_dim=config.action_dim, 
+                   hidden_size=config.hidden_size, key=key)
+    model = eqx.tree_deserialise_leaves(rnn_path, model)
     return model
 
-def load_initial_zs():
-    files = glob.glob("data/series/*.npz")
+def load_initial_zs(data_dir):
+    files = glob.glob(os.path.join(data_dir, "*.npz"))
     if not files:
-        print(f"\n[ERROR] No data series found in 'data/series/'")
+        print(f"\n[ERROR] No data series found in '{data_dir}'")
         print("You must process collected data before training.")
-        print("Run: python process_data.py\n")
+        print("Run: python process_data.py --env <env_name>\n")
         sys.exit(1)
         
     np.random.shuffle(files)
@@ -63,16 +54,26 @@ def main():
     parser.add_argument("--generations", type=int, default=NUM_GENERATIONS, help="Number of generations to evolve")
     parser.add_argument("--pop_size", type=int, default=POPULATION_SIZE, help="Population size")
     parser.add_argument("--dream_length", type=int, default=DREAM_LENGTH, help="Steps per dream episode")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     args = parser.parse_args()
 
     # Override globals (optional, or pass args)
     population_size = args.pop_size
     num_generations = args.generations
     dream_length = args.dream_length
+    env_name = args.env
+    
+    config = get_config(env_name)
+    
+    # Paths
+    checkpoint_dir = os.path.join("checkpoints", env_name)
+    rnn_path = os.path.join(checkpoint_dir, "rnn.eqx")
+    best_controller_path = os.path.join(checkpoint_dir, "controller_dream.npz")
+    data_dir = os.path.join("data/series", env_name)
 
     # 1. Load Resources
-    rnn = load_rnn()
-    real_zs = load_initial_zs()
+    rnn = load_rnn(rnn_path, config)
+    real_zs = load_initial_zs(data_dir)
     real_zs = jnp.array(real_zs)
     
     # 2. Define The Dream Engine (JIT Compiled)
@@ -81,14 +82,14 @@ def main():
     @jax.jit
     def run_dream_batch(params_batch, start_z, key):
         # Initialize LSTM State
-        h = jnp.zeros((params_batch.shape[0], HIDDEN_SIZE))
-        c = jnp.zeros((params_batch.shape[0], HIDDEN_SIZE))
+        h = jnp.zeros((params_batch.shape[0], config.hidden_size))
+        c = jnp.zeros((params_batch.shape[0], config.hidden_size))
         
         def step_fn(carry, _):
             z, h, c, active, cum_reward, current_key = carry
             
             # A. Controller Action
-            action = jax.vmap(get_action)(params_batch, z, h)
+            action = jax.vmap(get_action, in_axes=(0, 0, 0, None))(params_batch, z, h, config.action_dim)
             
             # B. RNN Prediction
             rnn_input = jnp.concatenate([z, action], axis=1)
@@ -138,12 +139,19 @@ def main():
         return final_rewards
 
     # 3. Setup CMA-ES
-    num_params = (ACTION_DIM * INPUT_DIM) + ACTION_DIM
-    print(f"Dream Training: {population_size} agents, {dream_length} steps, {num_generations} gens.")
+    # Input dim for controller is latent + hidden
+    input_dim = config.latent_dim + config.hidden_size
+    num_params = (config.action_dim * input_dim) + config.action_dim
+    
+    print(f"Dream Training for {env_name}: {population_size} agents, {dream_length} steps, {num_generations} gens.")
+    print(f"Controller Params: {num_params} (Input={input_dim}, Output={config.action_dim})")
     
     es = cma.CMAEvolutionStrategy(num_params * [0], 0.1, {'popsize': population_size, 'verbose': -1})
     
     print("Starting Dream...")
+    
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir, exist_ok=True)
     
     for gen in range(num_generations):
         start_time = time.time()
@@ -165,7 +173,7 @@ def main():
         print(f"Gen {gen+1} | Best Reward: {best:.1f} | Mean: {mean:.1f} | Time: {time.time()-start_time:.3f}s")
         
         best_idx = np.argmax(rewards_np)
-        np.savez(BEST_CONTROLLER_PATH, params=candidates[best_idx], score=best)
+        np.savez(best_controller_path, params=candidates[best_idx], score=best)
 
 if __name__ == "__main__":
     main()

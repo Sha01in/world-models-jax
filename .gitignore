@@ -34,8 +34,10 @@ Thumbs.db
 # --- Media Artifacts ---
 videos/
 diagnostics/
+telemetry/
 *.mp4
 *.png
+_vizdoom.ini
 
 # --- Documentation ---
 # Keep pyproject.toml and uv.lock so others can reproduce your env

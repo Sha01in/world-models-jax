@@ -10,6 +10,8 @@ dependencies = [
     "equinox",
     "optax",
     "gymnasium[box2d]",
+    "shimmy>=1.0.0",
+    "vizdoom",
     "cma",
     "opencv-python",
     "numpy",

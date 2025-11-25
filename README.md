@@ -1,11 +1,11 @@
-# World Models (JAX) on CarRacing-v3
+# World Models (JAX) on CarRacing-v3 & VizDoom
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![JAX](https://img.shields.io/badge/JAX-0.8+-orange.svg)](https://github.com/google/jax)
 [![arXiv](https://img.shields.io/badge/arXiv-1803.10122-b31b1b.svg)](https://arxiv.org/abs/1803.10122)
 
-A JAX/Equinox implementation of [World Models (Ha & Schmidhuber, 2018)](https://worldmodels.github.io/) applied to the Gymnasium `CarRacing-v3` environment.
+A JAX/Equinox implementation of [World Models (Ha & Schmidhuber, 2018)](https://worldmodels.github.io/) applied to the Gymnasium `CarRacing-v3` and `VizdoomTakeCover-v0` environments.
 
 ![Agent View](docs/debug_grid.png)
 *(Visualization of Real Observation vs. VAE Reconstruction vs. RNN Dream)*
@@ -97,12 +97,25 @@ python scripts/tools/run_pipeline_test.py
 
 ## 3. Usage Pipeline
 
-The World Model is trained in a strict pipeline. Each step depends on the previous one.
+The World Model is trained in a strict pipeline. Each step depends on the previous one. You must specify the environment using `--env`.
+Supported environments: `CarRacing-v3` (Default), `VizdoomTakeCover-v0`.
+
+### Example: Doom Pipeline
+To run the pipeline for Doom, simply add `--env VizdoomTakeCover-v0` to every command:
+```bash
+# 1. Collect Data
+python collect_data.py --env VizdoomTakeCover-v0
+
+# 2. Train VAE
+python run_vae_training.py --env VizdoomTakeCover-v0
+
+# ... and so on for process_data.py, train_rnn.py, train_dream.py, test_agent.py
+```
 
 ### Step 1: Data Collection
 Collect initial data to train the Vision model.
 ```bash
-python collect_data.py
+python collect_data.py --env CarRacing-v3
 # Select Option 1: Random (Brownian Noise)
 ```
 *Goal: ~2,000 - 5,000 episodes.*
@@ -112,32 +125,32 @@ python collect_data.py
 ### Step 2: Train Vision (VAE)
 Train the VAE to compress images.
 ```bash
-python run_vae_training.py
+python run_vae_training.py --env CarRacing-v3
 ```
 
 ### Step 3: Process Data
 Encode all collected images into latent vectors ($z$) and save them for RNN training.
 ```bash
-python process_data.py
+python process_data.py --env CarRacing-v3
 ```
 
 ### Step 4: Train Memory (RNN)
 Train the MDN-RNN to predict the future.
 ```bash
-python train_rnn.py
+python train_rnn.py --env CarRacing-v3
 ```
 *Note: This implementation uses an **Asymmetric Loss** to punish "Optimism" (predicting high rewards when crashing), which fixes the Sim2Real gap.*
 
 ### Step 5: Train Controller (Dreaming)
 Evolve the controller inside the RNN.
 ```bash
-python train_dream.py
+python train_dream.py --env CarRacing-v3
 ```
 
 ### Step 6: Test & Visualize
 Run the trained agent in the real environment.
 ```bash
-python test_agent.py
+python test_agent.py --env CarRacing-v3
 ```
 
 ## 4. Iterative Improvement (Sim2Real2Sim)

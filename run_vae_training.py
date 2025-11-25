@@ -9,24 +9,18 @@ import random
 import argparse
 from tqdm import tqdm
 from src.vae import VAE
+from src.config import get_config
 
 # --- Settings ---
-# Load BOTH datasets
-DATA_PATTERN_GOOD = "data/rollouts/*.npz"
-DATA_PATTERN_BAD = "data/rollouts_bad/*.npz"
-CHECKPOINT_DIR = "checkpoints"
-MODEL_PATH = os.path.join(CHECKPOINT_DIR, "vae.eqx")
-
-# Training Hyperparameters (Defaults)
-LATENT_DIM = 32
-LEARNING_RATE = 1e-4
+# Defaults
 BATCH_SIZE = 128
 KL_TOLERANCE = 0.5
 EPOCHS = 30
 FILES_PER_CHUNK = 50  # Only load 50 episodes into RAM at a time (prevents OOM)
+LEARNING_RATE = 1e-4
 
 # --- Training Logic (JIT Compiled) ---
-def loss_fn(model, batch, key):
+def loss_fn(model, batch, key, latent_dim):
     # batch: (B, 3, 64, 64) float32
     recon, mu, logvar = jax.vmap(model)(batch, jax.random.split(key, batch.shape[0]))
     
@@ -35,13 +29,13 @@ def loss_fn(model, batch, key):
     
     # KL Divergence
     kl_loss = -0.5 * jnp.sum(1 + logvar - jnp.square(mu) - jnp.exp(logvar), axis=1)
-    kl_loss = jnp.maximum(kl_loss, KL_TOLERANCE * LATENT_DIM)
+    kl_loss = jnp.maximum(kl_loss, KL_TOLERANCE * latent_dim)
     
     return jnp.mean(recon_loss + kl_loss)
 
 @eqx.filter_jit
-def make_step(model, opt_state, batch, key, optimizer):
-    loss, grads = eqx.filter_value_and_grad(loss_fn)(model, batch, key)
+def make_step(model, opt_state, batch, key, optimizer, latent_dim):
+    loss, grads = eqx.filter_value_and_grad(loss_fn)(model, batch, key, latent_dim)
     updates, opt_state = optimizer.update(grads, opt_state, model)
     model = eqx.apply_updates(model, updates)
     return model, opt_state, loss
@@ -70,30 +64,37 @@ def main():
     parser = argparse.ArgumentParser(description="Train VAE")
     parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs to train")
     parser.add_argument("--batch_size", type=int, default=BATCH_SIZE, help="Batch size")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     args = parser.parse_args()
 
     epochs = args.epochs
     batch_size = args.batch_size
+    env_name = args.env
+    
+    config = get_config(env_name)
+    latent_dim = config.latent_dim
+    
+    # Paths
+    # Look for data in data/rollouts/{env_name}/**/*.npz (recursive)
+    data_pattern = os.path.join("data/rollouts", env_name, "**", "*.npz")
+    checkpoint_dir = os.path.join("checkpoints", env_name)
+    model_path = os.path.join(checkpoint_dir, "vae.eqx")
 
     # 1. Find Files
-    files_good = glob.glob(DATA_PATTERN_GOOD)
-    files_bad = glob.glob(DATA_PATTERN_BAD)
-    all_files = files_good + files_bad
+    all_files = glob.glob(data_pattern, recursive=True)
     random.shuffle(all_files)
     
     total_files = len(all_files)
-    print(f"Found {len(files_good)} Good + {len(files_bad)} Bad = {total_files} Total Episodes")
+    print(f"Found {total_files} Episodes for {env_name} in {data_pattern}")
     
     if total_files == 0:
-        print("No data found! Run data collection first.")
+        print(f"No data found! Run data collection first: python collect_data.py --env {env_name}")
         return
 
     # 2. Initialize Model
     key = jax.random.PRNGKey(0)
-    # Try to load existing model to continue training? 
-    # Or start fresh? Let's start fresh to ensure we adapt to the new data fully.
-    print("Initializing new VAE...")
-    model = VAE(latent_dim=LATENT_DIM, key=key)
+    print(f"Initializing new VAE (Latent={latent_dim})...")
+    model = VAE(latent_dim=latent_dim, key=key)
     
     optimizer = optax.adam(LEARNING_RATE)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
@@ -101,8 +102,8 @@ def main():
     # 3. Training Loop
     print(f"Starting Chunked Training ({FILES_PER_CHUNK} files/chunk)...")
     
-    if not os.path.exists(CHECKPOINT_DIR):
-        os.makedirs(CHECKPOINT_DIR)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir, exist_ok=True)
 
     for epoch in range(epochs):
         # Shuffle files every epoch so chunks are different
@@ -140,7 +141,7 @@ def main():
                     
                     # Step
                     step_key = jax.random.fold_in(key, epoch*10000 + total_batches)
-                    model, opt_state, loss = make_step(model, opt_state, batch, step_key, optimizer)
+                    model, opt_state, loss = make_step(model, opt_state, batch, step_key, optimizer, latent_dim)
                     
                     epoch_loss += loss.item()
                     total_batches += 1
@@ -153,8 +154,8 @@ def main():
                 # Free RAM
                 del data_chunk
 
-        print(f"Epoch {epoch+1} Completed. Saving checkpoint...")
-        eqx.tree_serialise_leaves(MODEL_PATH, model)
+        print(f"Epoch {epoch+1} Completed. Saving checkpoint to {model_path}...")
+        eqx.tree_serialise_leaves(model_path, model)
 
     print("VAE Training Complete.")
 

@@ -7,32 +7,50 @@ import os
 from tqdm import tqdm
 from src.vae import VAE
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import equinox as eqx
+import glob
+import os
+import argparse
+from tqdm import tqdm
+from src.vae import VAE
+from src.config import get_config
+
 # Settings
 BATCH_SIZE = 128
-LATENT_DIM = 32
-OUTPUT_DIR = "data/series"
-VAE_PATH = "checkpoints/vae.eqx"
-
-# 1. Load ALL datasets (Good + Bad + Random + Iterative)
-DATA_PATTERN_GOOD = "data/rollouts/*.npz"
-DATA_PATTERN_BAD = "data/rollouts_bad/*.npz"
-DATA_PATTERN_RANDOM = "data/rollouts_random/*.npz"
-DATA_PATTERN_ITERATIVE = "data/rollouts_iterative/*.npz"
-DATA_PATTERN_RECOVERY = "data/rollouts_recovery/*.npz"
-DATA_PATTERN_AGGRESSIVE = "data/rollouts_aggressive/*.npz"
-DATA_PATTERN_ON_POLICY = "data/rollouts_on_policy/*.npz"
 
 def process_data():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    parser = argparse.ArgumentParser(description="Process collected data for VAE/RNN training")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
+    args = parser.parse_args()
+    
+    env_name = args.env
+    config = get_config(env_name)
+    
+    # Paths
+    data_dir_base = "data/rollouts"
+    output_dir = os.path.join("data/series", env_name)
+    checkpoint_dir = os.path.join("checkpoints", env_name)
+    vae_path = os.path.join(checkpoint_dir, "vae.eqx")
+    
+    # Data patterns - look in env specific dir
+    # We assume data is collected into data/rollouts/{env_name}
+    # Recursive search to find data in subdirectories (e.g. main, aggressive, etc.)
+    data_pattern = os.path.join(data_dir_base, env_name, "**", "*.npz")
 
-    print(f"Loading VAE from {VAE_PATH}...")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Loading VAE from {vae_path}...")
     # Initialize VAE
-    model = VAE(latent_dim=LATENT_DIM, key=jax.random.PRNGKey(0))
+    model = VAE(latent_dim=config.latent_dim, key=jax.random.PRNGKey(0))
     try:
-        model = eqx.tree_deserialise_leaves(VAE_PATH, model)
+        model = eqx.tree_deserialise_leaves(vae_path, model)
     except Exception as e:
         print(f"Error loading VAE: {e}")
+        print("Ensure you have trained the VAE first: python run_vae_training.py --env " + env_name)
         return
 
     # Optimized Encoder function
@@ -46,22 +64,13 @@ def process_data():
             return mu, logvar
         return jax.vmap(encode_single)(x)
 
-    # Combine file lists
-    files_good = glob.glob(DATA_PATTERN_GOOD)
-    files_bad = glob.glob(DATA_PATTERN_BAD)
-    files_random = glob.glob(DATA_PATTERN_RANDOM)
-    files_iterative = glob.glob(DATA_PATTERN_ITERATIVE)
-    files_recovery = glob.glob(DATA_PATTERN_RECOVERY)
-    files_aggressive = glob.glob(DATA_PATTERN_AGGRESSIVE)
-    files_on_policy = glob.glob(DATA_PATTERN_ON_POLICY)
-    
-    files = (files_good + files_bad + files_random + files_iterative + 
-             files_recovery + files_aggressive + files_on_policy)
+    # Get files
+    files = glob.glob(data_pattern, recursive=True)
     
     # Shuffle to mix them up during processing (optional but good practice)
     np.random.shuffle(files)
 
-    print(f"Processing {len(files)} episodes (All Datasets + Mirroring)...")
+    print(f"Processing {len(files)} episodes for {env_name}...")
 
     for i, f in enumerate(tqdm(files)):
         try:
@@ -97,7 +106,7 @@ def process_data():
             logvar_data = np.concatenate(logvar_seq, axis=0)
 
             np.savez_compressed(
-                os.path.join(OUTPUT_DIR, f"series_{i}{suffix}.npz"),
+                os.path.join(output_dir, f"series_{i}{suffix}.npz"),
                 mu=mu_data,
                 logvar=logvar_data,
                 actions=actions_in,
@@ -109,16 +118,18 @@ def process_data():
         save_sequence(obs, actions, "_orig")
 
         # --- 2. Save Mirrored (The "Anti-Spin" Fix) ---
-        # Flip image horizontally (Axis 2 is width for format N,H,W,C)
-        obs_flipped = np.flip(obs, axis=2)
-        
-        # Negate steering (Action index 0)
-        actions_flipped = actions.copy()
-        actions_flipped[:, 0] *= -1.0 
-        
-        save_sequence(obs_flipped, actions_flipped, "_flip")
+        # Only for CarRacing where steering is symmetric and index 0
+        if not config.is_doom: 
+            # Flip image horizontally (Axis 2 is width for format N,H,W,C)
+            obs_flipped = np.flip(obs, axis=2)
+            
+            # Negate steering (Action index 0)
+            actions_flipped = actions.copy()
+            actions_flipped[:, 0] *= -1.0 
+            
+            save_sequence(obs_flipped, actions_flipped, "_flip")
 
-    print("Data processing complete. Dataset size effectively doubled.")
+    print(f"Data processing complete for {env_name}.")
 
 if __name__ == "__main__":
     process_data()

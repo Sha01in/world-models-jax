@@ -8,30 +8,25 @@ import os
 import sys
 import argparse
 from src.rnn import MDNRNN
+from src.config import get_config
 from tqdm import tqdm
 
 # Settings (Defaults)
-DATA_DIR = "data/series/*.npz"
-CHECKPOINT_DIR = "checkpoints"
-MODEL_PATH = os.path.join(CHECKPOINT_DIR, "rnn.eqx")
 BATCH_SIZE = 100
-HIDDEN_SIZE = 256
-LATENT_DIM = 32
-ACTION_DIM = 3
 LEARNING_RATE = 1e-3
 EPOCHS = 20 
 
-def load_dataset():
-    files = glob.glob(DATA_DIR)
+def load_dataset(data_dir):
+    files = glob.glob(os.path.join(data_dir, "*.npz"))
     if not files:
-        print(f"\n[ERROR] No processed data found in 'data/series/'")
+        print(f"\n[ERROR] No processed data found in '{data_dir}'")
         print("You must collect and process data before training the RNN.")
-        print("1. Run: python collect_data.py")
-        print("2. Run: python run_vae_training.py")
-        print("3. Run: python process_data.py\n")
+        print("1. Run: python collect_data.py --env <env_name>")
+        print("2. Run: python run_vae_training.py --env <env_name>")
+        print("3. Run: python process_data.py --env <env_name>\n")
         sys.exit(1)
         
-    print(f"Found {len(files)} processed episodes.")
+    print(f"Found {len(files)} processed episodes in {data_dir}.")
     
     all_z = []
     all_actions = []
@@ -47,6 +42,10 @@ def load_dataset():
             
     # Stack into arrays
     # Slice to equal lengths just in case (usually 1000)
+    if not all_z:
+        print("No data loaded.")
+        sys.exit(1)
+
     min_len = min([len(x) for x in all_z])
     
     X_z = np.array([x[:min_len] for x in all_z])
@@ -115,12 +114,21 @@ def train():
     parser = argparse.ArgumentParser(description="Train MDN-RNN World Model")
     parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs to train")
     parser.add_argument("--batch_size", type=int, default=BATCH_SIZE, help="Batch size")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     args = parser.parse_args()
 
     epochs = args.epochs
     batch_size = args.batch_size
+    env_name = args.env
+    
+    config = get_config(env_name)
+    
+    # Paths
+    data_dir = os.path.join("data/series", env_name)
+    checkpoint_dir = os.path.join("checkpoints", env_name)
+    model_path = os.path.join(checkpoint_dir, "rnn.eqx")
 
-    Zs, Actions, Rewards, Dones = load_dataset()
+    Zs, Actions, Rewards, Dones = load_dataset(data_dir)
     
     # Prepare Inputs (t) and Targets (t+1)
     inputs_z = Zs[:, :-1, :]
@@ -139,16 +147,25 @@ def train():
     
     num_samples = inputs.shape[0]
     key = jax.random.PRNGKey(42)
-    model = MDNRNN(key=key)
+    
+    # Initialize Model with Config
+    model = MDNRNN(
+        latent_dim=config.latent_dim,
+        action_dim=config.action_dim,
+        hidden_size=config.hidden_size,
+        key=key
+    )
+    
     optimizer = optax.adam(LEARNING_RATE)
     opt_state = optimizer.init(eqx.filter(model, eqx.is_array))
     
-    print(f"Starting RNN (Dream) training on {num_samples} sequences...")
+    print(f"Starting RNN (Dream) training for {env_name} on {num_samples} sequences...")
+    print(f"Config: Latent={config.latent_dim}, Hidden={config.hidden_size}, Action={config.action_dim}")
     
     steps_per_epoch = num_samples // batch_size
     
-    if not os.path.exists(CHECKPOINT_DIR):
-        os.makedirs(CHECKPOINT_DIR)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir, exist_ok=True)
 
     for epoch in range(epochs):
         key, subkey = jax.random.split(key)
@@ -171,9 +188,9 @@ def train():
         
         # Save periodically
         if (epoch + 1) % 5 == 0:
-            eqx.tree_serialise_leaves(MODEL_PATH, model)
+            eqx.tree_serialise_leaves(model_path, model)
             
-    eqx.tree_serialise_leaves(MODEL_PATH, model)
+    eqx.tree_serialise_leaves(model_path, model)
     print("RNN Training Complete.")
 
 if __name__ == "__main__":
