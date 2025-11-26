@@ -5,47 +5,48 @@ import jax.numpy as jnp
 import equinox as eqx
 import cv2
 import os
+import sys
+import os
 import time
+import argparse
+
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
 from src.vae import VAE
 from src.rnn import MDNRNN
 from src.controller import get_action
+from src.config import get_config
+from src.env_utils import make_env
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor
 
 # Settings
 NUM_WORKERS = 12        # Reduced from 16 to 12 to prevent CPU starvation/Zombie issues
-NUM_EPISODES = 500      # Total episodes needed
-MAX_STEPS = 600
-DATA_DIR = "data/rollouts_on_policy"
-IMG_SIZE = 64
-LATENT_DIM = 32
-HIDDEN_SIZE = 256
-ACTION_DIM = 3
+NUM_EPISODES = 2000     # Default, can be overridden
+MAX_STEPS = 1000        # Increased for Doom
 
-# Paths
-VAE_PATH = "checkpoints/vae.eqx"
-RNN_PATH = "checkpoints/rnn.eqx"
-CONTROLLER_PATH = "checkpoints/controller_dream.npz"
-
-def collect_episode_worker(seed):
+def collect_episode_worker(args_tuple):
     """
     Worker function to collect a single episode.
     Running in a separate process with its own JAX CPU instance.
     """
+    seed, env_name, config, vae_path, rnn_path, controller_path, data_dir = args_tuple
+
     # 1. Force JAX to use CPU to avoid GPU contention
     jax.config.update("jax_platform_name", "cpu")
     
     # 2. Load Models (Fresh copy for this process)
     key = jax.random.PRNGKey(0)
     
-    vae = VAE(latent_dim=LATENT_DIM, key=key)
-    vae = eqx.tree_deserialise_leaves(VAE_PATH, vae)
+    vae = VAE(latent_dim=config.latent_dim, key=key)
+    vae = eqx.tree_deserialise_leaves(vae_path, vae)
     
-    rnn = MDNRNN(latent_dim=LATENT_DIM, action_dim=ACTION_DIM, 
-                 hidden_size=HIDDEN_SIZE, key=key)
-    rnn = eqx.tree_deserialise_leaves(RNN_PATH, rnn)
+    rnn = MDNRNN(latent_dim=config.latent_dim, action_dim=config.action_dim, 
+                 hidden_size=config.hidden_size, key=key)
+    rnn = eqx.tree_deserialise_leaves(rnn_path, rnn)
     
-    controller_data = np.load(CONTROLLER_PATH)
+    controller_data = np.load(controller_path)
     controller_params = jnp.array(controller_data['params'])
     
     # 3. Define JIT functions specific to this process
@@ -71,7 +72,7 @@ def collect_episode_worker(seed):
 
     @jax.jit
     def decide_action(z, h):
-        return get_action(controller_params, z, h)
+        return get_action(controller_params, z, h, config.action_dim)
 
     # 4. Simulation Loop
     try:
@@ -79,28 +80,36 @@ def collect_episode_worker(seed):
         np.random.seed(seed)
         
         # Create Env
-        env = gym.make("CarRacing-v3", render_mode="rgb_array")
-        obs, _ = env.reset()
+        # Use make_env from env_utils which handles DoomWrapper and resizing
+        env = make_env(env_name, render_mode="rgb_array")
+        obs, _ = env.reset(seed=seed)
         
-        h = jnp.zeros(HIDDEN_SIZE)
-        c = jnp.zeros(HIDDEN_SIZE)
+        h = jnp.zeros(config.hidden_size)
+        c = jnp.zeros(config.hidden_size)
         
         obs_seq, action_seq, reward_seq, done_seq = [], [], [], []
         
         # Warmup Action
-        # current_action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
+        # For Doom, 0.0 is No-op (Wait)
+        # For CarRacing, [0, 0, 0] is No-op
+        if config.is_doom:
+             warmup_action = np.zeros(config.action_dim, dtype=np.float32)
+        else:
+             warmup_action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
 
         for t in range(MAX_STEPS):
-            # Resize
-            obs_small = cv2.resize(obs, (IMG_SIZE, IMG_SIZE))
+            # Obs is already resized by wrapper in env_utils
+            obs_small = obs
             obs_seq.append(obs_small)
             
             # Inference
             z = encode(obs_small)
             
             if t < 50:
-                # Warmup: Drive straight
-                action = np.array([0.0, 0.5, 0.0], dtype=np.float32)
+                # Warmup
+                action = warmup_action
+                # For RNN input, we need JAX array
+                action_jax = jnp.array(action)
             else:
                 # Policy
                 action_jax = decide_action(z, h)
@@ -114,7 +123,7 @@ def collect_episode_worker(seed):
             done_seq.append(term or trunc)
             
             # Update Memory
-            h, c, _ = rnn_step(z, jnp.array(action), h, c)
+            h, c, _ = rnn_step(z, action_jax, h, c)
             
             if term or trunc:
                 break
@@ -123,7 +132,7 @@ def collect_episode_worker(seed):
         
         # Save Data
         # Use seed as unique ID
-        save_path = os.path.join(DATA_DIR, f"ep_{seed}.npz")
+        save_path = os.path.join(data_dir, f"on_policy_ep_{seed}.npz")
         np.savez_compressed(save_path,
                             obs=np.array(obs_seq),
                             actions=np.array(action_seq),
@@ -136,26 +145,48 @@ def collect_episode_worker(seed):
         return False
 
 def main():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+    parser = argparse.ArgumentParser(description="Parallel Data Collection (On-Policy)")
+    parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
+    parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="Number of episodes")
+    parser.add_argument("--workers", type=int, default=NUM_WORKERS, help="Number of workers")
+    args = parser.parse_args()
     
-    print("Starting Distributed Data Collection.")
-    print(f"Workers: {NUM_WORKERS}")
-    print(f"Target: {NUM_EPISODES} episodes")
+    env_name = args.env
+    num_episodes = args.episodes
+    num_workers = args.workers
+    
+    config = get_config(env_name)
+    
+    # Paths
+    checkpoint_dir = os.path.join("checkpoints", env_name)
+    vae_path = os.path.join(checkpoint_dir, "vae.eqx")
+    rnn_path = os.path.join(checkpoint_dir, "rnn.eqx")
+    controller_path = os.path.join(checkpoint_dir, "controller_dream.npz")
+    
+    data_dir = os.path.join("data/rollouts", env_name, "on_policy")
+    
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+    
+    print(f"Starting Distributed Data Collection for {env_name}.")
+    print(f"Workers: {num_workers}")
+    print(f"Target: {num_episodes} episodes")
     print("JAX Mode: CPU (Forced per worker)")
     
-    # Use a set of seeds as task IDs
-    seeds = list(range(int(time.time()), int(time.time()) + NUM_EPISODES))
+    # Prepare args for workers
+    # We pass paths instead of objects to avoid pickling issues with JAX/Equinox objects
+    seeds = list(range(int(time.time()), int(time.time()) + num_episodes))
+    worker_args = [(seed, env_name, config, vae_path, rnn_path, controller_path, data_dir) for seed in seeds]
     
     # Use mp_context='spawn' to ensure clean process start without inheriting JAX state
     import multiprocessing as mp
     ctx = mp.get_context('spawn')
     
-    with ProcessPoolExecutor(max_workers=NUM_WORKERS, mp_context=ctx) as executor:
-        results = list(tqdm(executor.map(collect_episode_worker, seeds), total=NUM_EPISODES))
+    with ProcessPoolExecutor(max_workers=num_workers, mp_context=ctx) as executor:
+        results = list(tqdm(executor.map(collect_episode_worker, worker_args), total=num_episodes))
         
     success_count = sum(results)
-    print(f"Collection Complete. Success: {success_count}/{NUM_EPISODES}")
+    print(f"Collection Complete. Success: {success_count}/{num_episodes}")
 
 if __name__ == "__main__":
     main()

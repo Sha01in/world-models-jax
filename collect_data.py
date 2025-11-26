@@ -13,7 +13,7 @@ from src.env_utils import make_env
 # --- Settings (Defaults) ---
 NUM_WORKERS = 12        # Default, but can be lower
 NUM_EPISODES = 500      # Total episodes needed
-MAX_STEPS = 1000
+MAX_STEPS = 2100
 DATA_DIR_BASE = "data/rollouts"
 IMG_SIZE = 64
 

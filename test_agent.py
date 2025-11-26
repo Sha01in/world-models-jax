@@ -8,9 +8,10 @@ import os
 import argparse
 from src.vae import VAE
 from src.rnn import MDNRNN
-from src.controller import get_action
+from src.controller import get_action_linear, get_action_mlp
 from src.config import get_config
 from src.env_utils import make_env
+from tqdm import tqdm
 
 # Settings (Defaults)
 NUM_EPISODES = 5
@@ -34,23 +35,158 @@ def load_models(env_name, config):
     
     data = np.load(controller_path)
     params = jnp.array(data['params'])
-    return vae, rnn, params
+    
+    # Check for controller type (default to linear for backward compatibility)
+    if 'type' in data:
+        controller_type = str(data['type'])
+    else:
+        controller_type = "linear"
+        
+    return vae, rnn, params, controller_type
+
+    env.close()
+
+def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type):
+    from gymnasium.vector import AsyncVectorEnv
+    import time
+    
+    # Define env factory
+    def make_env_fn():
+        return make_env(env_name, render_mode="rgb_array")
+        
+    # Create Vector Env
+    print(f"Initializing {num_workers} environments...")
+    envs = AsyncVectorEnv([make_env_fn for _ in range(num_workers)])
+    
+    # JIT compiled batched inference functions
+    @jax.jit
+    def encode_batch(imgs):
+        # imgs: (B, H, W, C) -> (B, C, H, W) / 255.0
+        x = jnp.array(imgs, dtype=jnp.float32) / 255.0
+        x = jnp.transpose(x, (0, 3, 1, 2))
+        # VAE expects (B, C, H, W)
+        # We need to vmap the VAE call or VAE supports batch?
+        # Our VAE __call__ takes (C, H, W). We need vmap.
+        # Actually, let's check VAE definition. Usually we vmap it.
+        # The single-item function:
+        def encode_single(img):
+            recon, mu, _ = vae(img, key=jax.random.PRNGKey(0))
+            return mu
+        return jax.vmap(encode_single)(x)
+
+    @jax.jit
+    def get_action_batch(zs, hs):
+        if controller_type == "linear":
+            return jax.vmap(get_action_linear, in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
+        elif controller_type == "mlp":
+            return jax.vmap(lambda p, z, h, ad: get_action_mlp(p, z, h, ad, hidden_dim=64), in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
+        else:
+            return jax.vmap(get_action_linear, in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
+
+    @jax.jit
+    def rnn_step_batch(zs, actions, hs, cs):
+        # zs: (B, Latent), actions: (B, Action), hs: (B, Hidden)
+        rnn_in = jnp.concatenate([zs, actions], axis=1)
+        (log_pi, mu, log_sigma, r_pred, d_pred), (h_new, c_new) = jax.vmap(rnn)(rnn_in, (hs, cs))
+        return h_new, c_new
+
+    # Initialize State
+    obs_batch, _ = envs.reset()
+    h_batch = jnp.zeros((num_workers, config.hidden_size))
+    c_batch = jnp.zeros((num_workers, config.hidden_size))
+    
+    # Buffers for each worker
+    worker_buffers = [{'obs': [], 'actions': [], 'rewards': [], 'dones': []} for _ in range(num_workers)]
+    
+    episodes_collected = 0
+    pbar = tqdm(total=num_episodes, desc="Collecting Data")
+    
+    data_dir = os.path.join("data/rollouts", env_name, "on_policy")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+        
+    while episodes_collected < num_episodes:
+        # 1. Encode
+        z_batch = encode_batch(obs_batch)
+        
+        # 2. Action
+        action_batch_jax = get_action_batch(z_batch, h_batch)
+        action_batch_np = np.array(action_batch_jax)
+        
+        # 3. Step Envs
+        next_obs_batch, reward_batch, term_batch, trunc_batch, _ = envs.step(action_batch_np)
+        
+        # 4. RNN Step
+        h_batch, c_batch = rnn_step_batch(z_batch, action_batch_jax, h_batch, c_batch)
+        
+        # 5. Store Data & Handle Dones
+        for i in range(num_workers):
+            # Store current step
+            worker_buffers[i]['obs'].append(obs_batch[i])
+            worker_buffers[i]['actions'].append(action_batch_np[i])
+            worker_buffers[i]['rewards'].append(reward_batch[i])
+            done = term_batch[i] or trunc_batch[i]
+            worker_buffers[i]['dones'].append(done)
+            
+            if done:
+                # Save Episode
+                if episodes_collected < num_episodes:
+                    seed = int(time.time() * 1000) + i + episodes_collected
+                    save_path = os.path.join(data_dir, f"on_policy_ep_{seed}.npz")
+                    np.savez_compressed(save_path,
+                                        obs=np.array(worker_buffers[i]['obs']),
+                                        actions=np.array(worker_buffers[i]['actions']),
+                                        rewards=np.array(worker_buffers[i]['rewards']),
+                                        dones=np.array(worker_buffers[i]['dones']))
+                    episodes_collected += 1
+                    pbar.update(1)
+                
+                # Reset Buffer
+                worker_buffers[i] = {'obs': [], 'actions': [], 'rewards': [], 'dones': []}
+                
+                # Reset RNN State for this worker
+                # We need to modify the JAX array in place or create new one
+                # JAX arrays are immutable.
+                h_batch = h_batch.at[i].set(jnp.zeros(config.hidden_size))
+                c_batch = c_batch.at[i].set(jnp.zeros(config.hidden_size))
+                
+        obs_batch = next_obs_batch
+        
+    envs.close()
+    pbar.close()
+    print(f"Parallel collection complete. Saved {episodes_collected} episodes.")
 
 def main():
     parser = argparse.ArgumentParser(description="Test Trained Agent")
     parser.add_argument("--episodes", type=int, default=NUM_EPISODES, help="Number of episodes to test")
     parser.add_argument("--no_video", action="store_true", help="Disable video saving (faster)")
+    parser.add_argument("--save_data", action="store_true", help="Save rollout data for training (Curriculum Learning)")
     parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
+    parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers for data collection")
+    parser.add_argument("--seed", type=int, default=None, help="Fixed seed for reproducibility")
     args = parser.parse_args()
 
     num_episodes = args.episodes
     save_video = not args.no_video
+    save_data = args.save_data
     env_name = args.env
+    num_workers = args.workers
     
     config = get_config(env_name)
 
-    vae, rnn, controller_params = load_models(env_name, config)
+    vae, rnn, controller_params, controller_type = load_models(env_name, config)
+    print(f"Loaded Controller Type: {controller_type}")
     
+    if num_workers > 1:
+        if not save_data:
+            print("Warning: Parallel mode implies --save_data. Enabling it.")
+            save_data = True
+        if save_video:
+            print("Warning: Parallel mode disables video saving.")
+            
+        collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type)
+        return
+
     @jax.jit
     def encode_and_recon(img):
         x = jnp.array(img, dtype=jnp.float32) / 255.0
@@ -60,7 +196,13 @@ def main():
 
     @jax.jit
     def get_step_action(z, h):
-        return get_action(controller_params, z, h, config.action_dim)
+        if controller_type == "linear":
+            return get_action_linear(controller_params, z, h, config.action_dim)
+        elif controller_type == "mlp":
+            return get_action_mlp(controller_params, z, h, config.action_dim, hidden_dim=64)
+        else:
+            # Fallback
+            return get_action_linear(controller_params, z, h, config.action_dim)
 
     @jax.jit
     def decode_from_z(z):
@@ -87,6 +229,12 @@ def main():
     video_dir = os.path.join(VIDEO_DIR, env_name)
     diagnostics_dir = os.path.join(DIAGNOSTICS_DIR, env_name)
     
+    # Data saving dir
+    if save_data:
+        data_dir = os.path.join("data/rollouts", env_name, "on_policy")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+    
     if save_video:
         if not os.path.exists(video_dir):
             os.makedirs(video_dir, exist_ok=True)
@@ -97,7 +245,10 @@ def main():
 
     for episode in range(num_episodes):
         # Generate a random seed for this episode
-        seed = np.random.randint(0, 1000000)
+        if args.seed is not None:
+            seed = args.seed + episode
+        else:
+            seed = np.random.randint(0, 1000000)
         obs, _ = env.reset(seed=seed)
         h = jnp.zeros(config.hidden_size)
         c = jnp.zeros(config.hidden_size)
@@ -112,7 +263,7 @@ def main():
         prev_expected_z = None
         total_surprise = 0.0
         
-            # Data collection for analysis
+        # Data collection for analysis
         telemetry_data = {
             'actions': [],
             'rewards': [],
@@ -122,9 +273,19 @@ def main():
             'r_pred': []
         }
         
-        for t in range(1000):
+        # Raw data for training
+        obs_seq = []
+        action_seq = []
+        reward_seq = []
+        done_seq = []
+        
+        for t in range(2100):
             # Obs is already resized by wrapper
             obs_small = obs
+            
+            if save_data:
+                obs_seq.append(obs_small)
+            
             z, recon_jax = encode_and_recon(obs_small)
             
             # Calculate Surprise (MSE between predicted z and actual z)
@@ -199,12 +360,27 @@ def main():
             except Exception:
                 telemetry_data["r_pred"].append(float(r_pred_val[0]))
             
+            # Store Training Data
+            if save_data:
+                action_seq.append(current_action)
+                reward_seq.append(reward)
+                done_seq.append(term or trunc)
+            
             if term or trunc:
                 break
         
         avg_surprise = total_surprise / t if t > 0 else 0.0
         print(f"Episode {episode+1}: Score = {total_reward:.1f} | Avg Surprise = {avg_surprise:.4f}")
         
+        # Save Training Data
+        if save_data:
+            save_path = os.path.join(data_dir, f"on_policy_ep_{seed}.npz")
+            np.savez_compressed(save_path,
+                                obs=np.array(obs_seq),
+                                actions=np.array(action_seq),
+                                rewards=np.array(reward_seq),
+                                dones=np.array(done_seq))
+
         # Save Telemetry
         telemetry_dir = os.path.join("telemetry", env_name)
         if not os.path.exists(telemetry_dir):

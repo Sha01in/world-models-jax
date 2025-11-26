@@ -92,12 +92,24 @@ def process_data():
             # Batch processing to save GPU memory
             for j in range(0, n_steps, BATCH_SIZE):
                 batch_obs = obs_in[j : j + BATCH_SIZE]
+                current_batch_size = batch_obs.shape[0]
                 
                 # Prepare for JAX (Normalize + Transpose)
                 batch_jax = jnp.array(batch_obs, dtype=jnp.float32) / 255.0
                 batch_jax = jnp.transpose(batch_jax, (0, 3, 1, 2))
                 
+                # Pad if necessary to match BATCH_SIZE (avoids JIT recompilation)
+                if current_batch_size < BATCH_SIZE:
+                    pad_amount = BATCH_SIZE - current_batch_size
+                    # Pad with zeros: ((0, pad), (0,0), (0,0), (0,0))
+                    batch_jax = jnp.pad(batch_jax, ((0, pad_amount), (0,0), (0,0), (0,0)))
+                
                 mu, logvar = encode_batch(model, batch_jax)
+                
+                # Slice back to original size if padded
+                if current_batch_size < BATCH_SIZE:
+                    mu = mu[:current_batch_size]
+                    logvar = logvar[:current_batch_size]
                 
                 mu_seq.append(np.array(mu))
                 logvar_seq.append(np.array(logvar))
