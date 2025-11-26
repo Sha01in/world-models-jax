@@ -66,10 +66,18 @@ class VizDoomEnv(gym.Env):
         # Or we construct the action list explicitly.
         
         actions = [0, 0]
-        if action == 0:
+        # Continuous to Discrete Mapping
+        # action is typically a numpy array or float
+        if isinstance(action, (np.ndarray, list)):
+            val = action[0]
+        else:
+            val = action
+            
+        if val < -0.3:
             actions[0] = 1 # Move Left
-        elif action == 1:
+        elif val > 0.3:
             actions[1] = 1 # Move Right
+        # Else: No-Op (Wait)
             
         reward = self.game.make_action(actions)
         
