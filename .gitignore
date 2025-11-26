@@ -35,7 +35,9 @@ Thumbs.db
 videos/
 diagnostics/
 telemetry/
+artifacts/
 *.mp4
+*.gif
 *.png
 _vizdoom.ini
 
