@@ -133,6 +133,7 @@ def train():
     parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of epochs to train")
     parser.add_argument("--batch_size", type=int, default=BATCH_SIZE, help="Batch size")
     parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
+    parser.add_argument("--data_dir", type=str, default=None, help="Path to data directory (overrides default)")
     args = parser.parse_args()
 
     epochs = args.epochs
@@ -142,7 +143,11 @@ def train():
     config = get_config(env_name)
     
     # Paths
-    data_dir = os.path.join("data/series", env_name)
+    if args.data_dir:
+        data_dir = args.data_dir
+        print(f"Using custom data directory: {data_dir}")
+    else:
+        data_dir = os.path.join("data/series", env_name)
     checkpoint_dir = os.path.join("checkpoints", env_name)
     model_path = os.path.join(checkpoint_dir, "rnn.eqx")
 

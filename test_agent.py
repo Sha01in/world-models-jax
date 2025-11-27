@@ -15,6 +15,7 @@ from src.env_utils import make_env
 from tqdm import tqdm
 import multiprocessing
 import functools
+import time
 
 # Settings (Defaults)
 NUM_EPISODES = 5
@@ -83,6 +84,9 @@ def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config
             return mu
         return jax.vmap(encode_single)(x)
 
+    all_rewards = []
+
+
     @jax.jit
     def get_action_batch(zs, hs):
         if controller_type == "linear":
@@ -139,7 +143,7 @@ def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config
             
             if done:
                 # Save Episode
-                if episodes_collected < num_episodes:
+                if save_data:
                     seed = int(time.time() * 1000) + i + episodes_collected
                     save_path = os.path.join(data_dir, f"on_policy_ep_{seed}.npz")
                     np.savez_compressed(save_path,
@@ -147,6 +151,12 @@ def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config
                                         actions=np.array(worker_buffers[i]['actions']),
                                         rewards=np.array(worker_buffers[i]['rewards']),
                                         dones=np.array(worker_buffers[i]['dones']))
+                
+                # Track reward
+                total_reward = sum(worker_buffers[i]['rewards'])
+                all_rewards.append(total_reward)
+                
+                if episodes_collected < num_episodes:
                     episodes_collected += 1
                     pbar.update(1)
                 
@@ -163,7 +173,25 @@ def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config
         
     envs.close()
     pbar.close()
+    
+    # Calculate metrics
+    # Calculate metrics
+    # We need to extract total reward from each episode
+    # worker_buffers contains lists of rewards per step.
+    # But wait, worker_buffers are reset. We need to track completed episode rewards.
+    # The current implementation saves to disk immediately if save_data is True.
+    # If save_data is False, we might be losing the data?
+    # Let's check where 'save_episode' is called.
+    # It seems we need to track episode rewards explicitly.
+    
     print(f"Parallel collection complete. Saved {episodes_collected} episodes.")
+    
+    if len(all_rewards) > 0:
+        mean_score = np.mean(all_rewards)
+        std_score = np.std(all_rewards)
+        print(f"Final Results ({len(all_rewards)} episodes):")
+        print(f"Mean Score: {mean_score:.2f} +/- {std_score:.2f}")
+        print(f"Min: {np.min(all_rewards):.2f}, Max: {np.max(all_rewards):.2f}")
 
 def main():
     parser = argparse.ArgumentParser(description="Test Trained Agent")
@@ -174,6 +202,8 @@ def main():
     parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers for data collection")
     parser.add_argument("--seed", type=int, default=None, help="Fixed seed for reproducibility")
     parser.add_argument("--debug", action="store_true", help="Enable verbose debug logging")
+    parser.add_argument("--controller_type", type=str, default=None, choices=["linear", "mlp"], help="Override controller type")
+    parser.add_argument("--hidden_size", type=int, default=None, help="Override hidden size")
     args = parser.parse_args()
 
     num_episodes = args.episodes
@@ -185,6 +215,13 @@ def main():
     config = get_config(env_name)
 
     vae, rnn, controller_params, controller_type, hidden_size = load_models(env_name, config)
+    
+    # Override if provided
+    if args.controller_type is not None:
+        controller_type = args.controller_type
+    if args.hidden_size is not None:
+        hidden_size = args.hidden_size
+        
     print(f"Loaded Controller Type: {controller_type} (Hidden={hidden_size} if MLP)")
     
     if num_workers > 1:
