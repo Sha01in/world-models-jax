@@ -62,6 +62,7 @@ def main():
     parser.add_argument("--temp_end", type=float, default=None, help="End temperature (overrides fixed temperature)")
     parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     parser.add_argument("--controller_type", type=str, default="linear", choices=["linear", "mlp"], help="Controller architecture")
+    parser.add_argument("--hidden_size", type=int, default=64, help="Hidden size for MLP controller")
     parser.add_argument("--strategy", type=str, default="es", choices=["es", "cma", "jax_cma"], help="Optimization strategy: 'es', 'cma', or 'jax_cma'")
     parser.add_argument("--output", type=str, default="controller_dream.npz", help="Output filename for the controller")
     args = parser.parse_args()
@@ -167,7 +168,7 @@ def main():
         controller_fn = get_action_linear
         print(f"Controller Type: Linear")
     elif args.controller_type == "mlp":
-        hidden_dim = 64 # Restored to 64 now that we use JAX ES
+        hidden_dim = args.hidden_size
         # Layer 1 (Input -> Hidden) + Layer 2 (Hidden -> Output)
         num_params = (input_dim * hidden_dim) + hidden_dim + (hidden_dim * config.action_dim) + config.action_dim
         controller_fn = lambda p, z, h, ad: get_action_mlp(p, z, h, ad, hidden_dim)
@@ -321,8 +322,9 @@ def main():
             print(f"Gen {gen+1} | T={current_temp:.2f} | Best: {best:.1f} | Mean: {mean:.1f} | Time: {time.time()-start_time:.3f}s")
             
             # Save Best
+            # Save Best
             best_idx = np.argmax(rewards_np)
-            np.savez(best_controller_path, params=candidates[best_idx], score=best, type=args.controller_type)
+            np.savez(best_controller_path, params=candidates[best_idx], score=best, type=args.controller_type, hidden_size=args.hidden_size)
 
     # 2. Original CMA-ES (using cma library)
     elif args.strategy == "cma":
@@ -376,7 +378,7 @@ def main():
             # es.result is (xbest, fbest, evals, best, stds, ...)
             # We can also just take the best from this batch
             best_idx = np.argmax(rewards_np)
-            np.savez(best_controller_path, params=candidates[best_idx], score=best, type=args.controller_type)
+            np.savez(best_controller_path, params=candidates[best_idx], score=best, type=args.controller_type, hidden_size=args.hidden_size)
             
             # Optional: Print CMA internal info occasionally
             if (gen + 1) % 10 == 0:

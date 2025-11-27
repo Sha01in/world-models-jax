@@ -17,6 +17,9 @@ class CMA_ES:
         self.pop_size = pop_size
         self.sigma_init = sigma_init
         
+        # Convert to float for stability in calculations
+        n = float(num_params)
+
         # Strategy parameters
         self.mu = pop_size // 2
         self.weights = jnp.log(self.mu + 0.5) - jnp.log(jnp.arange(1, self.mu + 1))
@@ -24,13 +27,13 @@ class CMA_ES:
         self.mueff = 1.0 / jnp.sum(self.weights**2)
         
         # Time constants
-        self.cc = (4 + self.mueff / num_params) / (num_params + 4 + 2 * self.mueff / num_params)
-        self.cs = (self.mueff + 2) / (num_params + self.mueff + 5)
-        self.c1 = 2 / ((num_params + 1.3)**2 + self.mueff)
-        self.cmu = min(1 - self.c1, 2 * (self.mueff - 2 + 1 / self.mueff) / ((num_params + 2)**2 + self.mueff))
-        self.damps = 1 + 2 * max(0, jnp.sqrt((self.mueff - 1) / (num_params + 1)) - 1) + self.cs
+        self.cc = (4 + self.mueff / n) / (n + 4 + 2 * self.mueff / n)
+        self.cs = (self.mueff + 2) / (n + self.mueff + 5)
+        self.c1 = 2 / ((n + 1.3)**2 + self.mueff)
+        self.cmu = min(1 - self.c1, 2 * (self.mueff - 2 + 1 / self.mueff) / ((n + 2)**2 + self.mueff))
+        self.damps = 1 + 2 * max(0, jnp.sqrt((self.mueff - 1) / (n + 1)) - 1) + self.cs
         
-        self.chiN = jnp.sqrt(num_params) * (1 - 1 / (4 * num_params) + 1 / (21 * num_params**2))
+        self.chiN = jnp.sqrt(n) * (1 - 1 / (4 * n) + 1 / (21 * n**2))
 
     def init(self, key: jnp.ndarray, mean_init: jnp.ndarray = None) -> CMAESState:
         if mean_init is None:

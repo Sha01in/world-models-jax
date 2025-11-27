@@ -11,7 +11,10 @@ from src.rnn import MDNRNN
 from src.controller import get_action_linear, get_action_mlp
 from src.config import get_config
 from src.env_utils import make_env
+from src.env_utils import make_env
 from tqdm import tqdm
+import multiprocessing
+import functools
 
 # Settings (Defaults)
 NUM_EPISODES = 5
@@ -42,17 +45,23 @@ def load_models(env_name, config):
     else:
         controller_type = "linear"
         
-    return vae, rnn, params, controller_type
+    # Check for hidden size
+    if 'hidden_size' in data:
+        hidden_size = int(data['hidden_size'])
+    else:
+        hidden_size = 64 # Default
+        
+    return vae, rnn, params, controller_type, hidden_size
 
     env.close()
 
-def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type):
+def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type, hidden_size):
     from gymnasium.vector import AsyncVectorEnv
     import time
     
     # Define env factory
-    def make_env_fn():
-        return make_env(env_name, render_mode="rgb_array")
+    # Must be picklable for 'spawn'
+    make_env_fn = functools.partial(make_env, env_name, render_mode="rgb_array")
         
     # Create Vector Env
     print(f"Initializing {num_workers} environments...")
@@ -79,7 +88,7 @@ def collect_data_parallel(env_name, num_episodes, num_workers, save_data, config
         if controller_type == "linear":
             return jax.vmap(get_action_linear, in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
         elif controller_type == "mlp":
-            return jax.vmap(lambda p, z, h, ad: get_action_mlp(p, z, h, ad, hidden_dim=64), in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
+            return jax.vmap(lambda p, z, h, ad: get_action_mlp(p, z, h, ad, hidden_dim=hidden_size), in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
         else:
             return jax.vmap(get_action_linear, in_axes=(None, 0, 0, None))(controller_params, zs, hs, config.action_dim)
 
@@ -164,6 +173,7 @@ def main():
     parser.add_argument("--env", type=str, default="CarRacing-v3", help="Environment name")
     parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers for data collection")
     parser.add_argument("--seed", type=int, default=None, help="Fixed seed for reproducibility")
+    parser.add_argument("--debug", action="store_true", help="Enable verbose debug logging")
     args = parser.parse_args()
 
     num_episodes = args.episodes
@@ -174,8 +184,8 @@ def main():
     
     config = get_config(env_name)
 
-    vae, rnn, controller_params, controller_type = load_models(env_name, config)
-    print(f"Loaded Controller Type: {controller_type}")
+    vae, rnn, controller_params, controller_type, hidden_size = load_models(env_name, config)
+    print(f"Loaded Controller Type: {controller_type} (Hidden={hidden_size} if MLP)")
     
     if num_workers > 1:
         if not save_data:
@@ -184,7 +194,7 @@ def main():
         if save_video:
             print("Warning: Parallel mode disables video saving.")
             
-        collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type)
+        collect_data_parallel(env_name, num_episodes, num_workers, save_data, config, vae, rnn, controller_params, controller_type, hidden_size)
         return
 
     @jax.jit
@@ -199,7 +209,7 @@ def main():
         if controller_type == "linear":
             return get_action_linear(controller_params, z, h, config.action_dim)
         elif controller_type == "mlp":
-            return get_action_mlp(controller_params, z, h, config.action_dim, hidden_dim=64)
+            return get_action_mlp(controller_params, z, h, config.action_dim, hidden_dim=hidden_size)
         else:
             # Fallback
             return get_action_linear(controller_params, z, h, config.action_dim)
@@ -370,7 +380,52 @@ def main():
                 break
         
         avg_surprise = total_surprise / t if t > 0 else 0.0
-        print(f"Episode {episode+1}: Score = {total_reward:.1f} | Avg Surprise = {avg_surprise:.4f}")
+        
+        # Enhanced Logging
+        # 1. Action Distribution
+        # Use telemetry_data['actions'] which is always populated
+        actions_np = np.array(telemetry_data['actions']).flatten()
+        
+        if np.isnan(actions_np).any():
+            action_dist = "NAN_DETECTED"
+        elif len(actions_np) == 0:
+            action_dist = "EMPTY"
+        elif config.is_doom:
+            # Doom actions are continuous but mapped to discrete.
+            # < -0.3 Left, > 0.3 Right, else Wait
+            lefts = np.sum(actions_np < -0.3)
+            rights = np.sum(actions_np > 0.3)
+            waits = len(actions_np) - lefts - rights
+            total = len(actions_np)
+            action_dist = f"L:{lefts/total:.2f}|R:{rights/total:.2f}|W:{waits/total:.2f}"
+        else:
+            # CarRacing: Mean Steer/Gas/Brake
+            # Reshape back to (T, 3) for mean calculation if needed, but for now just print mean
+            means = np.mean(actions_np)
+            action_dist = f"Mean:{means:.2f}"
+            
+        # 2. RNN Confidence (Predicted Reward/Survival)
+        # r_pred is usually survival prob in Doom (if trained that way) or reward
+        r_preds = np.array(telemetry_data['r_pred'])
+        avg_r_pred = np.mean(r_preds) if len(r_preds) > 0 else 0.0
+        
+        if args.debug:
+            print(f"Episode {episode+1}: Score = {total_reward:.1f} | Avg Surprise = {avg_surprise:.4f} | Actions: {action_dist} | Avg R_Pred: {avg_r_pred:.4f}")
+            
+            # 3. Last 20 Actions (The "Death Sequence")
+            if config.is_doom:
+                # Decode continuous back to discrete for readability
+                # < -0.3 Left (L), > 0.3 Right (R), else Wait (.)
+                last_actions = actions_np[-20:]
+                seq_str = ""
+                for a in last_actions:
+                    if a < -0.3: seq_str += "L"
+                    elif a > 0.3: seq_str += "R"
+                    else: seq_str += "."
+                print(f"    Death Sequence (Last 20): [{seq_str}]")
+        else:
+             # Minimal logging
+             print(f"Episode {episode+1}: Score = {total_reward:.1f}")
         
         # Save Training Data
         if save_data:
@@ -408,8 +463,9 @@ def main():
             
             for name in fourcc_names:
                 fourcc = cv2.VideoWriter_fourcc(*name)
-                # CarRacing runs at 50fps
-                temp_video = cv2.VideoWriter(video_path, fourcc, 50, (w_scaled, h_scaled))
+                # Determine FPS based on environment
+                fps = 35 if config.is_doom else 50
+                temp_video = cv2.VideoWriter(video_path, fourcc, fps, (w_scaled, h_scaled))
                 if temp_video.isOpened():
                     video = temp_video
                     print(f"Using codec: {name}")
@@ -435,4 +491,5 @@ def main():
     env.close()
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('spawn')
     main()

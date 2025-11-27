@@ -85,6 +85,11 @@ class VizDoomEnv(gym.Env):
         truncated = False # Doom episodes usually end by death or timeout handled by game
         
         if terminated:
+            try:
+                health = self.game.get_game_variable(vizdoom.GameVariable.HEALTH)
+                print(f"[INFO] Episode Terminated. Health: {health}")
+            except Exception:
+                pass
             obs = np.zeros((self.img_size, self.img_size, 3), dtype=np.uint8)
         else:
             obs = self._get_obs()
