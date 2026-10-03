@@ -1,17 +1,17 @@
 [project]
 name = "world-models-jax"
 version = "0.1.0"
-description = "JAX implementation of World Models on CarRacing-v3"
+description = "JAX implementation of World Models on CarRacing-v3 and VizDoom"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "jax[cuda12]; sys_platform == 'linux'",
-    "jax; sys_platform != 'linux'",
-    "equinox",
-    "optax",
-    "gymnasium[box2d]",
+    "jax[cuda13]>=0.11.2,<0.12; sys_platform == 'linux'",
+    "jax>=0.11.2,<0.12; sys_platform != 'linux'",
+    "equinox>=0.13.8,<0.14",
+    "optax>=0.2.8,<0.3",
+    "gymnasium[box2d]==1.2.2",
     "shimmy>=1.0.0",
-    "vizdoom",
+    "vizdoom==1.2.4",
     "cma",
     "opencv-python",
     "numpy",
@@ -26,8 +26,8 @@ dependencies = [
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.11
-target-version = "py311"
+# Match the supported runtime.
+target-version = "py312"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.

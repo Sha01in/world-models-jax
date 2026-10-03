@@ -409,3 +409,43 @@
     *   **Sim2Real Gap Persists:** The dream is likely still "too easy" or "too clean" compared to the noisy reality.
     *   **Observation:** "Early Movement" (Hallucination?) and "No Dodge" (Blindness?) are still present.
 *   **Next Steps:** **Phase 31: Iterative Refinement Round 2.** Use the 100 new failure episodes to retrain the RNN and force it to learn these specific death scenarios.
+
+## Phase 31: GPU reproduction audit and controlled evaluation
+
+* **Date:** 2026-10-02
+* **GPU:** WSL restart restored RTX 4070 Ti access. Python 3.12 / JAX 0.11.2
+  CUDA 13 / Equinox 0.13.8 / Optax 0.2.8 passed synchronized CUDA matrix and
+  convolution-gradient checks. The locked RNN optimizer benchmark improved from
+  57.4 ms to 26.4 ms per update (2.17×).
+* **Corrections:** Action/outcome alignment, fatal-action labels, per-axis MDN
+  mixtures, death-class weighting, posterior sampling, temperature scaling,
+  controller cell+hidden memory, true episode starts, real seeds, timeouts and
+  vector autoreset semantics. Earlier entries interpreted reward predictions as
+  survival confidence; Doom's constant reward cannot support that inference.
+  Reconstruction images alone also do not establish accurate dream dynamics.
+* **Checks:** 15,404 historical episodes contained three extra duplicates and
+  no duplicates across the current held-out split. Terminal recall on the paired
+  256-episode audit improved from 2.34% to 72.66% after corrected RNN training.
+* **Real results:** On 100 seeds 20000–20099, the original policy without warmup
+  scored 238.99 ± 114.07; random actions 222.58 ± 98.63; the iteration-1 selected
+  policy 505.74 ± 308.09. Selection used separate 20-game validation seeds.
+  This improved the repository baseline but did not meet the paper's >750 solve
+  criterion or its reported 1092 ± 556 score.
+* **Refinement:** Collected 1000 unique policy-failure episodes, kept 100 separate
+  new holdouts and all 770 old holdouts, fine-tuned posterior and mean models,
+  then completed four 500-generation CMA searches. The winner selected on 20
+  validation games (832.45) scored **840.06 ± 524.48 over 100 fresh test games**
+  on seeds 30000–30099, versus original **227.57 ± 111.85** and random
+  **220.21 ± 104.18** on the same seeds. This meets the paper's >750/100-game
+  criterion on this test, but remains below its 1092 mean. The bootstrap mean
+  interval (741.16–946.20) still includes means below 750. Sampled-death dreams,
+  mean real inference, reused VAE and full-frame preprocessing are protocol
+  extensions; this is not an exact replication. Frozen models and provenance:
+  `checkpoints/VizdoomTakeCover-v0/reproduction_refined_selected/`.
+* **Overnight:** The reference uses 400 RNN epochs and packed 500-step chunks.
+  The new packed trainer passed a two-epoch GPU pilot and 13 regression tests.
+  A 400-epoch continued-training run is active with preserved holdouts and
+  separate best/final checkpoints. No WSL settings were changed.
+
+Detailed protocols, artifacts, limitations and subsequent results are recorded
+in [the reproduction audit](vizdoom_reproduction.md).
