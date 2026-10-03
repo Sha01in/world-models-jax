@@ -70,6 +70,27 @@ class TestParallelEvaluation(unittest.TestCase):
             self.assertEqual(record["score"], length)
             self.assertEqual(record["actions_left_right_wait"], [0, 0, length])
 
+        # Recovery can schedule only unfinished, non-contiguous seeds, with the
+        # reference threshold and measured death/timeout labels.
+        callback_rows = []
+        calls.clear()
+        with patch("src.doom_evaluation.AsyncVectorEnv", FakeVectorEnv):
+            recovered = evaluate_parallel(
+                checked_policy,
+                episodes=3,
+                seed=0,
+                workers=2,
+                hidden_size=3,
+                episode_seeds=[1004, 1010, 1033],
+                action_threshold=0.3333,
+                record_outcomes=True,
+                on_episode=callback_rows.append,
+            )
+        self.assertEqual([r["seed"] for r in recovered], [1004, 1010, 1033])
+        self.assertEqual(sorted(calls), [1004, 1010, 1033])
+        self.assertEqual(sorted(callback_rows, key=lambda r: r["seed"]), recovered)
+        self.assertTrue(all(r["terminated"] and not r["truncated"] for r in recovered))
+
     def test_selection_preserves_explicit_posterior_inference(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

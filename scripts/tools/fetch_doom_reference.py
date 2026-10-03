@@ -22,12 +22,19 @@ FILES = {
     "source/rnn_train.py": "doomrnn/rnn_train.py",
     "source/vae_train.py": "doomrnn/vae_train.py",
     "source/README.md": "doomrnn/README.md",
+    "source/env.py": "doomrnn/env.py",
 }
 AUXILIARY = {
     "legacy/scipy_pilutil.py": "https://raw.githubusercontent.com/scipy/scipy/v1.1.0/scipy/misc/pilutil.py",
     "legacy/tensorflow_rnn_cell.py": "https://raw.githubusercontent.com/tensorflow/tensorflow/v1.8.0/tensorflow/contrib/rnn/python/ops/rnn_cell.py",
     "legacy/doom_assets_tree.json": "https://api.github.com/repos/ppaquette/gym-doom/git/trees/60ff576?recursive=1",
     "legacy/doom_take_cover.py": "https://raw.githubusercontent.com/ppaquette/gym-doom/60ff576/ppaquette_gym_doom/doom_take_cover.py",
+    "legacy/doom_env.py": "https://raw.githubusercontent.com/ppaquette/gym-doom/60ff5768121bae3cdb4cf177ec92e7c65f7d0e62/ppaquette_gym_doom/doom_env.py",
+    "legacy/take_cover.cfg": "https://raw.githubusercontent.com/ppaquette/gym-doom/60ff5768121bae3cdb4cf177ec92e7c65f7d0e62/ppaquette_gym_doom/assets/take_cover.cfg",
+    "current_engine/ViZDoomController.cpp": "https://raw.githubusercontent.com/Farama-Foundation/ViZDoom/1.2.4/src/lib/ViZDoomController.cpp",
+    "current_engine/ViZDoomGame.cpp": "https://raw.githubusercontent.com/Farama-Foundation/ViZDoom/1.2.4/src/lib/ViZDoomGame.cpp",
+    "current_engine/source_tree.json": "https://api.github.com/repos/Farama-Foundation/ViZDoom/git/trees/1.2.4?recursive=1",
+    "current_engine/viz_buffers.cpp": "https://raw.githubusercontent.com/Farama-Foundation/ViZDoom/17479b92f9a71ec0519af4409b4a7c4bf7b4c5b3/src/vizdoom/src/viz_buffers.cpp",
 }
 
 

@@ -56,7 +56,19 @@ def make_batched_policy(
     return batch
 
 
-def evaluate_parallel(policy, *, episodes, seed, workers, hidden_size):
+def evaluate_parallel(
+    policy,
+    *,
+    episodes,
+    seed,
+    workers,
+    hidden_size,
+    env_factory=None,
+    action_threshold=0.3,
+    record_outcomes=False,
+    episode_seeds=None,
+    on_episode=None,
+):
     """Evaluate exactly the requested seeds, reseeding every assigned episode.
 
     SAME_STEP keeps exhausted slots safe to step while other slots finish. Their
@@ -64,13 +76,22 @@ def evaluate_parallel(policy, *, episodes, seed, workers, hidden_size):
     with the next requested seed, and reset both memory states and the VAE RNG.
     """
     workers = min(workers, episodes)
-    factory = partial(make_env, "VizdoomTakeCover-v0", render_mode="rgb_array")
+    if episode_seeds is None:
+        episode_seeds = list(range(seed, seed + episodes))
+    if len(episode_seeds) != episodes or len(set(episode_seeds)) != episodes:
+        raise ValueError("Explicit episode seeds must be unique and match episodes")
+    factory = env_factory or partial(
+        make_env, "VizdoomTakeCover-v0", render_mode="rgb_array"
+    )
     envs = AsyncVectorEnv(
         [factory] * workers, context="spawn", autoreset_mode=AutoresetMode.SAME_STEP
     )
-    seeds = np.arange(seed, seed + workers)
+    seeds = np.asarray(episode_seeds[:workers], dtype=np.int64)
     keys = jnp.stack([jax.random.PRNGKey(int(s)) for s in seeds])
-    hidden = (jnp.zeros((workers, hidden_size)), jnp.zeros((workers, hidden_size)))
+    hidden = (
+        jnp.zeros((workers, hidden_size), dtype=jnp.float32),
+        jnp.zeros((workers, hidden_size), dtype=jnp.float32),
+    )
     steps = np.zeros(workers, np.int32)
     scores = np.zeros(workers)
     counts = np.zeros((workers, 3), np.int64)
@@ -83,9 +104,9 @@ def evaluate_parallel(policy, *, episodes, seed, workers, hidden_size):
             actions, hidden, keys = policy(obs, hidden, keys, steps)
             actions_np = np.asarray(actions)
             directions = np.where(
-                actions_np[:, 0] < -0.3,
+                actions_np[:, 0] < -action_threshold,
                 0,
-                np.where(actions_np[:, 0] > 0.3, 1, 2),
+                np.where(actions_np[:, 0] > action_threshold, 1, 2),
             )
             for i in np.flatnonzero(assigned):
                 counts[i, directions[i]] += 1
@@ -96,16 +117,21 @@ def evaluate_parallel(policy, *, episodes, seed, workers, hidden_size):
             reset_mask = np.zeros(workers, bool)
             reset_seeds = [None] * workers
             for i in np.flatnonzero(finished):
-                records.append(
-                    {
-                        "seed": int(seeds[i]),
-                        "survival_steps": int(steps[i]),
-                        "score": float(scores[i]),
-                        "actions_left_right_wait": counts[i].tolist(),
-                    }
-                )
+                record = {
+                    "seed": int(seeds[i]),
+                    "survival_steps": int(steps[i]),
+                    "score": float(scores[i]),
+                    "actions_left_right_wait": counts[i].tolist(),
+                }
+                if record_outcomes:
+                    record.update(
+                        terminated=bool(terminated[i]), truncated=bool(truncated[i])
+                    )
+                records.append(record)
+                if on_episode is not None:
+                    on_episode(record)
                 if next_episode < episodes:
-                    seeds[i] = seed + next_episode
+                    seeds[i] = episode_seeds[next_episode]
                     next_episode += 1
                     reset_seeds[i] = int(seeds[i])
                     reset_mask[i] = True

@@ -897,3 +897,29 @@ in [the reproduction audit](vizdoom_reproduction.md).
   `artifacts/doom_incumbent_4_cohort_summary.json`, and
   `artifacts/doom_experiment_completion_audit.json`. Full validation table,
   limitations and stopping rationale are in `docs/vizdoom_reproduction.md`.
+
+### Reference environment compatibility audit, round5
+
+* Pinned public author weights are a diagnostic control; no new training or
+  independently trained policy is claimed. A source audit found that legacy
+  doom-py0.0.15 clamps requested skill5 to4 and emits RGB bytes for its nominal
+  BGR24 format. The modern reference wrapper now uses effective skill4/RGB24.
+  The prior trained pipeline already used those effective settings.
+* On 100 common diagnostic seeds 120000–120099, the literal modern skill5/BGR
+  port scored 119.42 ± 38.97; correcting difficulty alone scored 236.13 ± 117.25.
+  Both cohorts ended in100 deaths. Those comparisons use a different engine
+  and RNG from the original paper and do not select or retrain the policy.
+* With both compatibility corrections, eight initial games on 120000–120007
+  scored 1083.88 ± 526.27, all deaths. This is a small supplied-model diagnostic,
+  not a100-game success or a match of our trained model to the paper.
+* The corrected-color100-game attempt stopped at the reward-versus-step
+  assertion after saving one244-step game. The failing record was not saved;
+  its cause remains unresolved. An eight-game replay and a CPU32-tic timeout
+  check passed reward accounting, so a timeout bug has not been established.
+* Reference weights, game assets and evaluation source are fingerprinted.
+  Episode callbacks save valid partial reports; recovery schedules unfinished
+  seeds only under the same frozen protocol. Future own-policy validation
+  130000–130099 and testing 140000–140099 remain separately reserved.
+* Evidence, protocol differences and runnable tools are documented in
+  `docs/vizdoom_reference_audit.md`. Detailed local reports and downloaded
+  assets remain ignored under `artifacts/`; original checkpoints are intact.

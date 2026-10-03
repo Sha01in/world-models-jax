@@ -4,11 +4,13 @@ import ast
 from pathlib import Path
 import unittest
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 from PIL import Image
 
 from src.doom_reference import ReferenceRNN, reference_preprocess
+from src.doom_reference import make_reference_policy
 
 
 def numpy_step(parameters, inputs, hidden, restart):
@@ -67,6 +69,85 @@ def numpy_decode(parameters, z):
 
 
 class TestDoomReference(unittest.TestCase):
+    def test_policy_state_order_continuous_action_and_restart_timing(self):
+        class FixedVAE:
+            def encode(self, image):
+                return jnp.array([0.1, -0.2, 0.3], dtype=jnp.float32), jnp.zeros(3)
+
+        rng = np.random.default_rng(84)
+        arrays = [
+            rng.normal(0, 0.2, shape).astype(np.float32)
+            for shape in ((7, 8), (8,), (2, 19), (19,))
+        ]
+        rnn = ReferenceRNN(
+            *(jnp.asarray(a) for a in arrays),
+            latent_dim=3,
+            hidden_size=2,
+            num_gaussians=2,
+        )
+        controller = rng.normal(size=7).astype(np.float32)
+        policy = make_reference_policy(
+            FixedVAE(), rnn, jnp.asarray(controller), posterior=False
+        )
+        h = rng.normal(size=(2, 2)).astype(np.float32)
+        c = rng.normal(size=(2, 2)).astype(np.float32)
+        steps = np.array([0, 4], np.int32)
+        keys = jnp.stack([jax.random.PRNGKey(seed) for seed in (200, 201)])
+        actions, hidden, _ = policy(
+            np.zeros((2, 64, 64, 3), np.uint8),
+            (jnp.asarray(h), jnp.asarray(c)),
+            keys,
+            steps,
+        )
+        z = np.array([0.1, -0.2, 0.3], np.float32)
+        for index in range(2):
+            action = np.tanh(np.concatenate([z, c[index], h[index]]) @ controller)
+            _, expected_hidden = numpy_step(
+                arrays,
+                np.concatenate([z, [action]]),
+                (h[index], c[index]),
+                steps[index] == 0,
+            )
+            np.testing.assert_allclose(actions[index, 0], action, atol=2e-7)
+            for actual, expected in zip(hidden, expected_hidden):
+                np.testing.assert_allclose(actual[index], expected, atol=2e-7)
+
+    def test_reference_button_order_threshold_and_timeout_labels(self):
+        import vizdoom
+        from src.doom_reference_env import ReferenceDoomEnv
+
+        class FakeGame:
+            def make_action(self, buttons, ticks):
+                self.buttons = buttons
+                self.ticks = ticks
+                return 1
+
+            def get_state(self):
+                return None
+
+            def is_player_dead(self):
+                return False
+
+            def is_episode_finished(self):
+                return False
+
+        env = ReferenceDoomEnv.__new__(ReferenceDoomEnv)
+        env.game = FakeGame()
+        env.buttons = [vizdoom.Button.MOVE_RIGHT, vizdoom.Button.MOVE_LEFT]
+        env.steps = 0
+        for action, buttons in ((-0.5, [0, 1]), (0.32, [0, 0]), (0.5, [1, 0])):
+            _, reward, dead, timeout, _ = env.step([action])
+            self.assertEqual(env.game.buttons, buttons)
+            self.assertEqual(env.game.ticks, 1)
+            self.assertEqual(reward, 1)
+            self.assertFalse(dead or timeout)
+        env.steps = 2099
+        _, _, dead, timeout, _ = env.step([0])
+        self.assertFalse(dead)
+        self.assertTrue(timeout)
+        with self.assertRaises(ValueError):
+            env.step([np.nan])
+
     def test_tf_gate_order_forget_offset_restart_and_mixture_layout(self):
         rng = np.random.default_rng(81)
         arrays = [

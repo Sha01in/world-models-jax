@@ -29,7 +29,7 @@ def reference_preprocess(frame):
     """
     frame = np.asarray(frame)
     if frame.dtype != np.uint8 or frame.ndim != 3 or frame.shape[-1] != 3:
-        raise ValueError("Reference preprocessing needs a native uint8 RGB frame")
+        raise ValueError("Reference preprocessing needs a native uint8 3-channel frame")
     if frame.shape[0] < 400:
         raise ValueError("Crop native observations before reducing resolution")
     image = frame[:400].astype(np.float64) / 255.0
@@ -69,7 +69,10 @@ class ReferenceRNN(eqx.Module):
         return (log_pi.T, mu.T, log_sigma.T, jnp.zeros(1), output[:1]), (h, c)
 
     def init_state(self):
-        return (jnp.zeros(self.hidden_size), jnp.zeros(self.hidden_size))
+        return (
+            jnp.zeros(self.hidden_size, dtype=jnp.float32),
+            jnp.zeros(self.hidden_size, dtype=jnp.float32),
+        )
 
 
 def checked_reference_arrays(directory):
@@ -151,3 +154,36 @@ def load_author_models(directory):
     if controller.shape != (1088,) or not np.isfinite(controller).all():
         raise ValueError("Reference controller weights differ")
     return vae, rnn, jnp.asarray(controller), manifest
+
+
+def make_reference_policy(vae, rnn, controller, *, posterior=True):
+    """Reference timing: control from z,c,h, then consume z,raw action,restart.
+
+    A float64 controller with JAX x64 enabled preserves the reference's NumPy
+    precision for latent noise and policy arithmetic. VAE and RNN remain FP32.
+    RNG uses independent JAX keys per actual game seed, not legacy Gym's stream.
+    """
+
+    def one(image, hidden, key, steps):
+        next_key, sample_key = jax.random.split(key)
+        mu, logvar = vae.encode(
+            jnp.transpose(image.astype(jnp.float32) / 255, (2, 0, 1))
+        )
+        z = mu
+        if posterior:
+            z = mu + jnp.exp(logvar / 2) * jax.random.normal(
+                sample_key, mu.shape, dtype=controller.dtype
+            )
+        action = jnp.tanh(jnp.concatenate([z, hidden[1], hidden[0]]) @ controller)
+        inputs = jnp.concatenate([z, action.reshape(1)]).astype(jnp.float32)
+        next_hidden = rnn(inputs, hidden, (steps == 0).astype(jnp.float32))[1]
+        return action.reshape(1), next_hidden, next_key
+
+    @jax.jit
+    def batch(images, hidden, keys, steps):
+        return jax.lax.map(
+            lambda row: one(row[0], (row[1], row[2]), row[3], row[4]),
+            (images, hidden[0], hidden[1], keys, steps),
+        )
+
+    return batch
