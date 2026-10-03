@@ -1,4 +1,4 @@
-"""Evaluate the frozen supplied controller under the pinned legacy settings."""
+"""Evaluate supplied or locally refined controllers in the reference environment."""
 # ruff: noqa: E402 -- initialize CUDA/precision before importing models.
 
 import argparse
@@ -47,7 +47,62 @@ def verify_records(rows, expected_seeds):
         if not row["terminated"] ^ row["truncated"]:
             raise ValueError("Each completed game must be death or timeout")
         if row["score"] != steps:
-            raise ValueError("Living reward differs from survival steps")
+            raise ValueError(f"Living reward differs from survival steps: {row}")
+
+
+def load_controller(path, reference_manifest):
+    """Require a complete local search with matching frozen world/weight hashes."""
+    path = Path(path)
+    base = path
+    if path.name.endswith(".last.npz"):
+        base = path.with_name(path.name.removesuffix(".last.npz") + ".npz")
+    settings = json.loads(Path(str(base) + ".json").read_text())
+    resume = json.loads(Path(str(base) + ".resume.json").read_text())
+    if not resume["complete"]:
+        raise ValueError("Reference controller search is incomplete")
+    key = "last_sha256" if path != base else "best_sha256"
+    if digest(path) != resume[key]:
+        raise ValueError("Frozen controller fingerprint differs")
+    if settings["reference_commit"] != reference_manifest["reference_commit"]:
+        raise ValueError("Controller reference revision differs")
+    for name in ("vae.json", "rnn.json"):
+        trained_key = str(Path(settings["arguments"]["reference_dir"]) / name)
+        if (
+            settings["input_sha256"][trained_key]
+            != reference_manifest["files"][name]["sha256"]
+        ):
+            raise ValueError("Controller was trained in a different latent world")
+    if settings["source_sha256"]["src/doom_reference.py"] != digest(
+        "src/doom_reference.py"
+    ):
+        raise ValueError("Reference model conversion changed since training")
+    with np.load(path, allow_pickle=False) as data:
+        params = data["params"].copy()
+        if (
+            params.shape != (1088,)
+            or not np.isfinite(params).all()
+            or str(data["type"]) != "reference_linear"
+            or str(data["state_mode"]) != "ch"
+            or not bool(data["posterior_sampling"])
+            or bool(data["canonical_actions"])
+        ):
+            raise ValueError("Expected finite1088-weight reference controller")
+        generation = int(data["generation"])
+        expected = resume["generation"] if path != base else resume["best_generation"]
+        if generation != expected:
+            raise ValueError("Controller generation differs from preserved search")
+    evidence = dict(
+        controller=str(path),
+        generation=generation,
+        dream_temperature=settings["arguments"]["temperature"],
+        own_policy_update=generation > 0,
+        imported_public_world=True,
+    )
+    files = {
+        str(p): digest(p)
+        for p in (path, Path(str(base) + ".json"), Path(str(base) + ".resume.json"))
+    }
+    return jnp.asarray(params, dtype=jnp.float64), evidence, files
 
 
 def main():
@@ -60,6 +115,13 @@ def main():
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--difficulty", type=int, choices=(4, 5), default=4)
     parser.add_argument("--color-order", choices=("rgb", "bgr"), default="rgb")
+    parser.add_argument("--controller", help="Completed local reference-policy .npz")
+    parser.add_argument(
+        "--inference", choices=("posterior", "mean"), default="posterior"
+    )
+    parser.add_argument(
+        "--role", choices=("diagnostic", "validation", "test"), default="diagnostic"
+    )
     args = parser.parse_args()
     if args.episodes < 1 or args.workers < 1:
         parser.error("Positive episode/worker counts required")
@@ -68,12 +130,23 @@ def main():
         raise FileExistsError("Preserve completed reference report")
     output.parent.mkdir(parents=True, exist_ok=True)
     partial_output = output.with_suffix(".partial.json")
+    failure_output = output.with_suffix(".failed.json")
+    if failure_output.exists():
+        raise FileExistsError(
+            "Inspect and preserve the captured failure before recovery"
+        )
     expected_seeds = list(range(args.seed, args.seed + args.episodes))
     if jax.default_backend() != "gpu":
         raise RuntimeError("CUDA required for the reference policy evaluation")
     vae, rnn, _, manifest = load_author_models(args.reference_dir)
     payload, _ = checked_reference_arrays(args.reference_dir)
     controller = jnp.asarray(payload["controller.json"][0], dtype=jnp.float64)
+    controller_evidence = dict(own_policy_update=False, imported_public_world=True)
+    controller_inputs = {}
+    if args.controller:
+        controller, controller_evidence, controller_inputs = load_controller(
+            args.controller, manifest
+        )
     inputs = {
         str(Path(args.reference_dir) / name): row["sha256"]
         for name, row in manifest["files"].items()
@@ -81,8 +154,13 @@ def main():
     for name in ("take_cover.wad", "freedoom2.wad"):
         path = Path(args.asset_dir) / name
         inputs[str(path)] = digest(path)
+    inputs.update(controller_inputs)
     protocol = dict(
-        policy_source="supplied public author weights; diagnostic control",
+        policy_source="local controller refinement on frozen public world"
+        if args.controller
+        else "supplied public author weights; diagnostic control",
+        controller_provenance=controller_evidence,
+        evaluation_role=args.role,
         reference_commit=manifest["reference_commit"],
         input_sha256=inputs,
         source_sha256={
@@ -94,7 +172,7 @@ def main():
                 Path(__file__),
             )
         },
-        inference_posterior_sampling=True,
+        inference_posterior_sampling=args.inference == "posterior",
         controller="bias-free tanh over z,c,h; raw continuous action into RNN",
         preprocessing=f"{args.color_order.upper()}24 native640x480; crop400; legacy bytescale/Pillow bilinear/uint8 wrap",
         original_screen_format="Legacy BGR24 emitted effectiveRGB. Modern RGB24 preserves its byte order.",
@@ -132,7 +210,26 @@ def main():
 
     def record(row):
         rows.append(row)
-        verify_records(rows, expected_seeds)
+        try:
+            verify_records(rows, expected_seeds)
+        except ValueError as error:
+            # Keep unvalidated evidence separate from the valid recovery file.
+            # A failing row must never silently disappear again.
+            with failure_output.open("x") as stream:
+                stream.write(
+                    json.dumps(
+                        dict(
+                            protocol=protocol,
+                            expected_seeds=expected_seeds,
+                            error=str(error),
+                            offending_record=row,
+                            actual_rows=rows,
+                        ),
+                        indent=2,
+                    )
+                    + "\n"
+                )
+            raise
         snapshot = dict(
             protocol=protocol,
             expected_seeds=expected_seeds,
@@ -156,7 +253,9 @@ def main():
         seed for seed in expected_seeds if seed not in {r["seed"] for r in rows}
     ]
     if remaining:
-        policy = make_reference_policy(vae, rnn, controller)
+        policy = make_reference_policy(
+            vae, rnn, controller, posterior=args.inference == "posterior"
+        )
         evaluate_parallel(
             policy,
             episodes=len(remaining),
@@ -180,6 +279,11 @@ def main():
         raise ValueError("Reference cohort incomplete")
     if any(digest(path) != fingerprint for path, fingerprint in inputs.items()):
         raise ValueError("Frozen reference inputs changed during evaluation")
+    if any(
+        digest(path) != fingerprint
+        for path, fingerprint in protocol["source_sha256"].items()
+    ):
+        raise ValueError("Frozen evaluation source changed during execution")
     scores = np.asarray([row["survival_steps"] for row in rows], dtype=np.float64)
     report = dict(
         measured_at=datetime.now(timezone.utc).isoformat(),
@@ -198,7 +302,7 @@ def main():
         deaths=sum(row["terminated"] for row in rows),
         timeouts=sum(row["truncated"] for row in rows),
         elapsed_seconds_this_attempt=time.monotonic() - started,
-        diagnostic_only=True,
+        diagnostic_only=args.role == "diagnostic",
         target_mean_observed=bool(len(rows) >= 100 and scores.mean() >= 1092),
         episodes_detail=sorted(rows, key=lambda row: row["seed"]),
     )

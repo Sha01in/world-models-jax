@@ -640,3 +640,16 @@ completion; `artifacts/task_state.json` records consumed seeds, candidate and
 incumbent paths, and a future-resume boundary. A future GPU experiment needs a
 new request; completed test seeds must not become tuning or validation seeds.
 Completion verification is in `artifacts/doom_experiment_completion_audit.json`.
+
+The preceding closure describes rounds2–4. The renewed user goal to match or
+beat1092, with GPU availability reconfirmed, authorizes round5; the goal remains
+active. The source-compatible imported reference world now reaches991.20
+±506.48 on100 diagnostic games. This is a supplied-model control, not a new
+training reproduction. A bounded own-controller refinement at temperature1.15
+has completed500 generations. Six fresh20-game validation cases selected the
+generation270 controller with posterior inference at958.05 ±596.39, versus
+supplied posterior877.75 ±478.91. The policy was frozen before reserved100-game
+testing, which is underway; no independent test gain is claimed yet. Source migration
+evidence, complete diagnostic results and the controlled protocol are in
+[the reference audit](vizdoom_reference_audit.md). Historical reports and
+checkpoints remain intact, and the stopped packed run is not resumed.

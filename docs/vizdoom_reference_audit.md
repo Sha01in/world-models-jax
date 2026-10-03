@@ -212,4 +212,130 @@ deliberately stopped at epoch255.
 Commit validation: all 41 tests passed on CPU, including per-seed RNG/memory
 reset, recovery callbacks, reference policy timing, button mapping and timeout
 labels. Ruff lint/format checks and `git diff --check` passed. These checks do
-not resolve the full real-game evaluation failure described above.
+not resolve the preceding real-game evaluation failure described above.
+
+## Full reference replay and controller refinement
+
+A new full replay of the same fixed models and diagnostic schedule completed
+all100 games on120000–120099: **991.20 ± 506.48**,98 deaths and2 timeouts.
+Every reward equalled its controlled action count, and the first eight records
+exactly matched the separate eight-game replay. The preceding scoring failure
+did not recur; its original offending record is unavailable, so its cause
+remains unresolved. An unchanged scoring assertion accepted both complete
+2100-action timeouts. The current evaluator captures future failing records
+separately from validated partial reports and refuses blind failure recovery.
+
+The fixed-policy mean's whole-game bootstrap95% interval is
+**[893.45,1091.04]**. Against the preserved effective-skill4/BGR control on the
+same seeds, the effective-RGB correction adds **755.07** steps on average,
+with paired95% **[662.22,850.52]**. These50,000 resamples, seed74121, condition
+on fixed policies and exclude training variability. Neither the mean nor this
+diagnostic establishes the requested1092-step performance of our trained model.
+The public controller checkpoint is not proven to be the exact checkpoint
+behind the paper's reported result, and engine/RNG/Pillow differences remain.
+
+Report: `artifacts/doom_reference_round5_error_capture100.json`, SHA-256
+`ebd003d07721c96308a9f12b4e763287a9ddbc2a34ef3b080661445be21bde27`.
+CPU analysis: `artifacts/doom_reference_round5_rgb_analysis.json`. All frozen
+input/source fingerprints passed before editing the evaluator; the exact
+four source files also match the preserved
+`artifacts/doom_reference_round5/source_snapshots/rgb_before_validator_fix/`.
+
+The next bounded comparison trains a controller on the imported frozen public
+world. It does not claim newly trained VAE/RNN weights. Settings are
+temperature1.15,500 CMA generations,population64,16 trials per candidate,
+candidate batch64,initial sigma0.02,seed91,starting from the public controller.
+The controller has1088 bias-free weights over `[z,c,h]`; it sends raw actions
+and an initial restart flag into the RNN. Latent/control arithmetic usesFP64,
+the RNN usesFP32, and multiplication precision is highest. Dream death requires
+a strictly positive logit, the terminal action earns one point, and invalid
+active trajectories cause a failure rather than receiving a survival score.
+
+Start distributions come from the reference `initial_z.json`, divided by10000.
+A fixed shuffled90/10 split of start indices separates training from dream
+validation. Candidates share16 starts and noise streams within each generation;
+every10 generations, the population's best candidate and CMA mean face64 fixed
+held-out dream rollouts. The initial policy remains eligible as the best
+checkpoint. Best and latest policies, CMA optimizer, NumPy RNG and next JAX key
+are retained. Dream validation is a training check, not proof of real transfer.
+
+`scripts/tools/train_doom_reference_controller.py` and
+`src/doom_reference_training.py` implement this comparison. All45 CPU tests
+passed before GPU dispatch, including independent scalar rollout/state/action
+checks, strict zero-logit survival, and an isolated actual-CMA checkpoint test
+that reproduces the next population after restoring optimizer and RNG state.
+CUDA matrix multiplication and convolution backward preflight passed. One GPU
+job is supervised by `artifacts/run_reference_round5_controller_search.py`;
+checkpoints are in
+`checkpoints/VizdoomTakeCover-v0/reference_round5_controller_s91/`.
+
+Real selection will compare distinct best/final/controller and posterior/mean
+combinations on20 fresh validation games130000–130019, deduplicating identical
+policies in the same inference mode. Freeze the validation winner before100
+reserved tests140000–140099 and evaluate the supplied reference control on
+those same test seeds for a paired comparison. The rest of the reserved
+validation range remains unused. Re-audit seeds immediately before dispatch;
+test outcomes must never choose or retrain a policy. The new evaluator checks
+controller/world fingerprints and records inference mode and evaluation role.
+Its additional isolated CPU test passed for mismatched-world rejection,
+failed-record preservation, mean inference metadata, and refusal to blindly
+resume a captured failure. The original840.06 result and all original
+checkpoints remain preserved; packed training stopped at255 must not resume.
+
+The search completed500 generations with input/source and checkpoint hashes
+verified. Best held-out dream score was **1162.40625 at generation270**, versus
+initial1110.796875; final CMA mean scored961.53125. This is an own controller
+update on an imported public world, with real performance still unproven.
+Best policy SHA-256:
+`4bab7eabccabdc4cc259de156a7bcabb0b6c0a5cedf768f630242f29db4c4525`;
+final policy:
+`968bd53f8d66500be1891180f98b657ecd91095b6bdc2226567ddbf4723ea9c8`.
+Optimizer/RNG and all originals passed preservation checks. Search result:
+`artifacts/doom_reference_round5_controller_s91_result.json`.
+
+The serial real supervisor `artifacts/run_reference_round5_real_evaluations.py`
+completed six distinct validation combinations. Each completed report
+must match its policy, inference, role, seeds, frozen inputs and source. Valid
+partial reports recover unfinished seeds; captured failures require diagnosis.
+`artifacts/doom_reference_round5_frozen_selection.json` records selection
+and fingerprints before tests. Final job result will be
+`artifacts/doom_reference_round5_real_evaluation_result.json`. Neither those
+pending test results nor dream improvement currently proves the1092-step objective.
+
+All six real validation reports passed independent CPU checks for exact seeds,
+game records, summaries, policy/inference and frozen input/source hashes:
+
+| Frozen controller | Posterior mean ± population SD | Mean-latent mean ± population SD |
+| --- | ---: | ---: |
+| Supplied reference | 877.75 ± 478.91 | 854.50 ± 400.92 |
+| Best dream checkpoint, generation270 | **958.05 ± 596.39** | 918.85 ± 523.56 |
+| Final CMA mean, generation500 | 697.65 ± 285.45 | 772.75 ± 353.09 |
+
+The maximum20-game validation mean selected generation270 with posterior
+inference. Selection was frozen at2026-10-03T21:39:24.496998Z before its reserved
+100-game test began. Test seeds140000–140099 are also used for the unchanged
+supplied posterior control. No test outcomes choose a policy. The validation
+lead of80.30 steps is not an independent test improvement.
+
+`src/doom_reference_results.py` checks complete, unique game cohorts and
+recomputes survival summaries. The CPU-only completion tool additionally
+recomputes selection from validation, verifies frozen report/input/source
+hashes and selection timing, and jointly resamples whole games for selected,
+control and paired-difference95% intervals. Run it after both test reports
+and the final supervisor result exist:
+
+```bash
+JAX_PLATFORMS=cpu OPENBLAS_NUM_THREADS=4 .venv/bin/python \
+  scripts/tools/summarize_doom_reference_results.py
+```
+
+The default output is `artifacts/doom_reference_round5_paired_comparison.json`;
+existing analyses are preserved. It records own-controller versus imported
+world provenance and leaves goal completion for review. Its isolated fixtures
+reject changed validation selection, missing games, wrong rewards/summaries
+and mismatched paired worlds, and verify paired intervals with known gains.
+
+Commit validation: all49 tests passed on CPU, including dream rollout timing,
+CMA/RNG restoration, captured-failure recovery and result-selection audits.
+Ruff lint/format checks and `git diff --check` passed. The existing reserved
+real-game evaluation continued independently; these checks launched no GPU work.

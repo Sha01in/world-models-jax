@@ -923,3 +923,50 @@ in [the reproduction audit](vizdoom_reproduction.md).
 * Evidence, protocol differences and runnable tools are documented in
   `docs/vizdoom_reference_audit.md`. Detailed local reports and downloaded
   assets remain ignored under `artifacts/`; original checkpoints are intact.
+
+### Full reference diagnostic complete; bounded own-controller refinement
+
+* The unchanged effective-skill4/RGB policy completed100 common diagnostic
+  seeds120000–120099 at **991.20 ± 506.48**,98 deaths and2 timeouts. All rewards
+  matched controlled actions; the initial eight records exactly reproduced.
+  The earlier scoring failure did not recur, and its cause remains unresolved.
+  Future failures now preserve the offending record without weakening checks.
+* Mean whole-game bootstrap95% is **[893.45,1091.04]**. Paired gain from correcting
+  modern BGR to effective legacy RGB at fixed skill4 is **+755.07**,95%
+  **[662.22,850.52]** (50,000 fixed-policy paired resamples, seed74121). This
+  diagnostic uses public author weights, differs in engine/RNG/Pillow, and
+  does not meet the1092 target or reproduce our training.
+* CPU input/source/record checks passed. Original snapshots and reports are
+  preserved. Artifacts: `doom_reference_round5_error_capture100.json` and
+  `doom_reference_round5_rgb_analysis.json`, under `artifacts/`.
+* One500-generation own-controller refinement was run on the frozen public
+  world at tau1.15,pop64,16 trials,candidate batch64,sigma0.02,seed91,initialized
+  from the public policy. It retains best/final policy, optimizer and RNG. All45
+  CPU tests and CUDA preflight passed before dispatch; no VAE/RNN retraining is
+  claimed. An additional evaluator recovery/provenance CPU test also passed.
+* Real validation130000–130019 and reserved testing140000–140099 are separate
+  and unused at dispatch. Selection precedes freezing and testing, with a
+  paired supplied-policy control. Dream scores do not establish real gains.
+  Protocol and tools are in `docs/vizdoom_reference_audit.md`; the user goal
+  remains active and the canonical840.06 checkpoint is intact.
+
+* The controller search subsequently completed500 generations. Best held-out
+  dream score1162.40625 at generation270 exceeds initial1110.796875; final CMA
+  mean961.53125 is also preserved. Input/source, best/final, optimizer/RNG and
+  canonical incumbent fingerprints passed verification. Real survival remains
+  unproven; this is controller training on an imported public world.
+* The serial real supervisor is evaluating six distinct combinations on the20
+  fresh validation games, then will freeze the validation winner before the100
+  reserved tests and supplied-control pairing. An actual live supervisor and
+  evaluation child were verified; CUDA preflight passed and no second GPU job
+  is running. Current result/status paths are in the reference audit and
+  `artifacts/task_state.json`.
+* All six validation combinations subsequently completed on seeds130000–130019.
+  Best-generation270/posterior won at **958.05 ± 596.39**, versus supplied
+  posterior **877.75 ± 478.91**. The selection and input/source fingerprints
+  were frozen at2026-10-03T21:39:24.496998Z before reserved testing began.
+  These are validation scores, not a completed100-game test or proof of1092.
+* CPU tools now independently check complete games, frozen validation-only
+  selection, matching input/source hashes, and paired whole-game uncertainty.
+  `scripts/tools/summarize_doom_reference_results.py` produces the final audit
+  once both reserved reports and the supervisor result are complete.
