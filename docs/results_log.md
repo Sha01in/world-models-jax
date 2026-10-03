@@ -970,3 +970,33 @@ in [the reproduction audit](vizdoom_reproduction.md).
   selection, matching input/source hashes, and paired whole-game uncertainty.
   `scripts/tools/summarize_doom_reference_results.py` produces the final audit
   once both reserved reports and the supervisor result are complete.
+* The selected generation270/posterior controller subsequently completed100
+  reserved games140000–140099 at **1035.22 ± 550.45**,92 deaths/8 timeouts;
+  mean95% **[929.91,1144.23]** from50,000 whole-game resamples,seed74140.
+  Exact records, summaries, frozen policy and input/source fingerprints passed
+  independent CPU checks. This observed mean is below1092, so the goal remains
+  active. The paired supplied-policy test is running; its gain is not yet known.
+  Artifact: `doom_reference_round5_selected_test100_cpu_audit.json`.
+* The paired supplied posterior control subsequently completed **955.39 ±
+  541.20** on the same100 seeds,93 deaths/7 timeouts. Selected-minus-control
+  gain **+79.83**,95% **[-22.26,+183.00]**,48 wins/43 losses/9 ties, does not
+  establish a reliable improvement (50,000 joint whole-game resamples,
+  seed74140). All validation-only selection, reserved cohorts, frozen
+  report/input/source hashes and timing passed the independent final audit.
+  Both evaluation processes exited; GPU compute-process query was empty.
+  Artifacts: `doom_reference_round5_real_evaluation_result.json` and
+  `doom_reference_round5_paired_comparison.json`. Goal remains active below1092.
+* The matched temperature1.25 follow-up completed500 generations. Best
+  held-out dream score889.296875 at generation210, initial768.1875 and
+  final698.296875; these are dream scores, not real survival results.
+  Independent CPU checks verified optimizer/RNG, identical starting indices,
+  source/world fingerprints and preserved original checkpoints. Four policies
+  are now undergoing80 fresh validation games each on seeds130020–130099;
+  the first control had completed21 games at this check, with CUDA preflight
+  passed. Only an updated1.25 candidate winning against both controls may
+  consume reserved100-game tests150000–150099, paired with frozen1.15.
+  New selection safeguards and the protocol-aware CPU auditor verify this
+  comparison and reject substituted controls or mismatched cohorts.
+* Commit checks: all52 tests passed on CPU. Ruff lint and formatting checks
+  passed for the changed Python files, and `git diff --check` passed. The
+  existing real validation supervisor remained running during these checks.

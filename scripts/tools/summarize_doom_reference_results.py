@@ -34,7 +34,7 @@ def read_checked_report(path, task, *, role):
     return report
 
 
-def audit_result(result_path, *, resamples=50000):
+def audit_result(result_path, *, resamples=50000, protocol_path=None):
     result_path = Path(result_path)
     result = json.loads(result_path.read_text())
     freeze_path = Path(result["frozen_selection"])
@@ -42,6 +42,71 @@ def audit_result(result_path, *, resamples=50000):
         raise ValueError("Frozen selection fingerprint differs")
     freeze = json.loads(freeze_path.read_text())
     tasks = freeze["validation_tasks"]
+    expected_test_range = [140000, 140099]
+    control_controller = None
+    controlled_protocol = None
+    if protocol_path is not None:
+        protocol_path = Path(protocol_path)
+        controlled_protocol = json.loads(protocol_path.read_text())
+        if freeze["protocol_sha256"] != digest(protocol_path) or result[
+            "protocol_sha256"
+        ] != digest(protocol_path):
+            raise ValueError("Preregistered comparison protocol changed")
+        for group in ("frozen_inputs", "frozen_training_source"):
+            if any(digest(p) != sha for p, sha in controlled_protocol[group].items()):
+                raise ValueError("Preregistered world/training source changed")
+        expected_test_range = controlled_protocol["test_seed_range"]
+        if expected_test_range[1] - expected_test_range[0] + 1 != 100:
+            raise ValueError("A complete100-game reserved test is required")
+        control_controller = controlled_protocol["previous_selected_policy"]
+        if (
+            digest(control_controller)
+            != controlled_protocol["previous_selected_policy_sha256"]
+        ):
+            raise ValueError("Preregistered paired control changed")
+        new_best = Path(controlled_protocol["arguments"]["output"])
+        new_last = new_best.with_name(new_best.stem + ".last.npz")
+        allowed_candidates = {str(new_best), str(new_last)}
+        allowed_controls = {None, control_controller}
+        val_first, val_last = controlled_protocol["validation_seed_range"]
+        if val_last - val_first + 1 != controlled_protocol["validation_games"]:
+            raise ValueError("Preregistered validation count differs from cohort")
+        identities = set()
+        for task in tasks:
+            if (
+                task["seed"] != val_first
+                or task["episodes"] != controlled_protocol["validation_games"]
+                or task["inference"] != "posterior"
+            ):
+                raise ValueError(
+                    "Validation differs from preregistered cohort/inference"
+                )
+            actor = task["controller"]
+            if actor not in allowed_controls | allowed_candidates:
+                raise ValueError("Validation actor is outside preregistered candidates")
+            expected_kind = "control" if actor in allowed_controls else "candidate"
+            if task["kind"] != expected_kind:
+                raise ValueError("Validation policy role differs from protocol")
+            if actor is None:
+                public = (
+                    Path(controlled_protocol["arguments"]["reference_dir"])
+                    / "controller.json"
+                )
+                params = np.asarray(json.loads(public.read_text())[0], np.float64)
+            else:
+                with np.load(actor, allow_pickle=False) as checkpoint:
+                    params = np.asarray(checkpoint["params"], np.float64)
+            identity = hashlib.sha256(params.tobytes()).hexdigest()
+            if identity != task["parameters_sha256"] or identity in identities:
+                raise ValueError("Policy identity differs or was not deduplicated")
+            identities.add(identity)
+        if {
+            t["controller"] for t in tasks if t["kind"] == "control"
+        } != allowed_controls:
+            raise ValueError("Both preregistered controls must be validated")
+        control_indices = [i for i, t in enumerate(tasks) if t["kind"] == "control"]
+        if control_indices != list(range(len(control_indices))):
+            raise ValueError("Preregistered controls must precede candidates for ties")
     validation = []
     for task in tasks:
         path = task["report"]
@@ -68,11 +133,32 @@ def audit_result(result_path, *, resamples=50000):
         != validation[winner]["protocol"]["controller_provenance"]
     ):
         raise ValueError("Selected policy provenance differs")
-    if freeze["test_seed_range"] != [140000, 140099]:
+    if freeze["test_seed_range"] != expected_test_range:
         raise ValueError("Unexpected reserved test cohort")
-    test_task = dict(selected_task, seed=140000, episodes=100)
+    if controlled_protocol is not None:
+        provenance = validation[winner]["protocol"]["controller_provenance"]
+        if (
+            selected_task["kind"] != "candidate"
+            or not provenance["own_policy_update"]
+            or provenance["generation"] <= 0
+            or provenance["dream_temperature"]
+            != controlled_protocol["arguments"]["temperature"]
+            or not freeze["new_policy_won"]
+        ):
+            raise ValueError(
+                "Reserved tests require an updated candidate validation winner"
+            )
+        if datetime.fromisoformat(controlled_protocol["preregistered_at"]) > min(
+            datetime.fromisoformat(r["measured_at"]) for r in validation
+        ):
+            raise ValueError("Comparison protocol postdates validation")
+    first_test_seed = expected_test_range[0]
+    test_task = dict(selected_task, seed=first_test_seed, episodes=100)
     control_task = dict(
-        controller=None, inference="posterior", seed=140000, episodes=100
+        controller=control_controller,
+        inference="posterior",
+        seed=first_test_seed,
+        episodes=100,
     )
     selected_path, control_path = result["selected_test"], result["control_test"]
     for path, key in (
@@ -99,7 +185,10 @@ def audit_result(result_path, *, resamples=50000):
     ):
         raise ValueError("Reserved report predates frozen selection")
     summary = paired_survival_summary(
-        selected, control, range(140000, 140100), resamples=resamples
+        selected,
+        control,
+        range(first_test_seed, first_test_seed + 100),
+        resamples=resamples,
     )
     if (
         result["test_mean"] != summary["selected_mean"]
@@ -134,6 +223,9 @@ def audit_result(result_path, *, resamples=50000):
         policy_provenance=selected["protocol"]["controller_provenance"],
         protocol_limitations=selected["protocol"]["limitations"],
         completion_still_requires_review=True,
+        preregistered_protocol=str(protocol_path)
+        if protocol_path is not None
+        else None,
     )
 
 
@@ -146,11 +238,12 @@ def main():
     parser.add_argument(
         "--output", default="artifacts/doom_reference_round5_paired_comparison.json"
     )
+    parser.add_argument("--protocol", help="Preregistered controlled comparison JSON")
     args = parser.parse_args()
     output = Path(args.output)
     if output.exists():
         raise FileExistsError("Preserve existing paired analysis")
-    analysis = audit_result(args.result)
+    analysis = audit_result(args.result, protocol_path=args.protocol)
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("x") as stream:
         stream.write(json.dumps(analysis, indent=2, allow_nan=False) + "\n")

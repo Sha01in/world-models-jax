@@ -649,7 +649,14 @@ training reproduction. A bounded own-controller refinement at temperature1.15
 has completed500 generations. Six fresh20-game validation cases selected the
 generation270 controller with posterior inference at958.05 ±596.39, versus
 supplied posterior877.75 ±478.91. The policy was frozen before reserved100-game
-testing, which is underway; no independent test gain is claimed yet. Source migration
+testing. The selected controller completed100 fresh games at1035.22 ±550.45,
+below1092. The paired supplied-policy control completed955.39 ±541.20;
+gain+79.83 has95% interval[-22.26,+183.00], so no reliable improvement is
+established. The complete independent CPU audit passed, and both processes
+exited. A controlled temperature1.25 follow-up completed500 generations with
+all other training settings fixed; its best dream checkpoint is generation210.
+Four policies are undergoing80 fresh real validation games each before any
+new reserved test. Dream scores establish no real survival improvement. Source migration
 evidence, complete diagnostic results and the controlled protocol are in
 [the reference audit](vizdoom_reference_audit.md). Historical reports and
 checkpoints remain intact, and the stopped packed run is not resumed.

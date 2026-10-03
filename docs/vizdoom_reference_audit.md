@@ -316,6 +316,13 @@ inference. Selection was frozen at2026-10-03T21:39:24.496998Z before its reserve
 100-game test began. Test seeds140000–140099 are also used for the unchanged
 supplied posterior control. No test outcomes choose a policy. The validation
 lead of80.30 steps is not an independent test improvement.
+Its descriptive paired whole-game bootstrap95% interval is[-111.75,+281.35];
+the selected validation mean's interval is[702.45,1226.75] (50,000 resamples,
+seed74130). These intervals hold policies fixed and do not correct for choosing
+the winner on these same20 games or for training variability. The validation
+lead alone does not establish a reliable gain. CPU analysis:
+`artifacts/doom_reference_round5_validation_uncertainty.json`; it read no test
+outcomes and did not change the frozen selection.
 
 `src/doom_reference_results.py` checks complete, unique game cohorts and
 recomputes survival summaries. The CPU-only completion tool additionally
@@ -335,7 +342,96 @@ world provenance and leaves goal completion for review. Its isolated fixtures
 reject changed validation selection, missing games, wrong rewards/summaries
 and mismatched paired worlds, and verify paired intervals with known gains.
 
-Commit validation: all49 tests passed on CPU, including dream rollout timing,
+The selected generation270/posterior controller has now completed all100
+reserved games140000–140099 at **1035.22 ± 550.45**,92 deaths and8 timeouts.
+Its fixed-policy whole-game bootstrap95% mean interval is **[929.91,1144.23]**
+(50,000 resamples,seed74140). The100-game observed mean does not meet1092;
+an interval containing the paper's mean does not prove the requested target.
+This is our controller update on imported frozen public VAE/RNN weights.
+All exact seed/game records, means/SDs, input/source fingerprints and agreement
+with the frozen validation policy passed independent CPU checks in
+`artifacts/doom_reference_round5_selected_test100_cpu_audit.json`. Report SHA-256:
+`5378ec02257be63e2978a84eb3e03558de80f5e2574fe0e039b89d36968893db`.
+The supplied posterior policy's paired100-game control completed at
+**955.39 ± 541.20**,93 deaths and7 timeouts. Selected-minus-control mean gain
+is **+79.83**, with paired whole-game bootstrap95% **[-22.26,+183.00]**;
+48 wins,43 losses and9 ties. The control mean's interval is[850.09,1061.53].
+These50,000 joint resamples use seed74140 and hold both policies/world fixed;
+they exclude training variability and historical engine/RNG differences.
+A reliable gain is not established, and1035.22 remains below1092.
+
+The final CPU audit independently recomputed the validation-only winner,
+verified all six validation reports and both exact100-game test cohorts,
+checked report/world/source hashes and selection timing, and confirmed the
+controller is an own update on imported public world weights. Artifact:
+`artifacts/doom_reference_round5_paired_comparison.json`. Both supervisor and
+evaluation child exited, and the GPU compute-process query was empty before
+the next guarded experiment. Original checkpoints remain intact.
+
+## Controlled temperature follow-up
+
+The pinned public source sets dream temperature1.25
+([source](https://github.com/hardmaru/WorldModelsExperiments/blob/fd982b9691a941b52c6addbde29bc801ca6202c8/doomrnn/doomrnn.py#L24)),
+whereas the paper's strongest reported result uses1.15. The paper's temperature
+effect is not monotonic:1.30 transferred worse than1.15
+([paper](https://worldmodels.github.io/#cheating-the-world-model)). A matched1.25
+comparison is a source-motivated hypothesis, not a guaranteed improvement.
+
+`artifacts/doom_reference_round6_temperature_protocol.json` fixes the next
+bounded comparison before dispatch. Only temperature and output path differ
+from the1.15 search: the public world, starting policy, CMA seed91,sigma0.02,
+500 generations,population64,16 trials,candidate batch64 and fixed64-dream
+validation every10 generations stay identical. The frozen1.15 generation270
+policy is retained as a control. Using64 dream validation rollouts still
+differs from the paper's1024-rollout checks; this matched comparison isolates
+temperature within one training realization, not general superiority.
+
+Four distinct policies—supplied, frozen1.15 best, new1.25 best and new1.25 final—
+use posterior inference on80 fresh validation games130020–130099, with
+identical parameter/inference combinations deduplicated. The larger cohort is
+motivated by the wide20-game validation interval. Only a newly updated1.25
+policy that wins validation against both controls will be frozen for100 new
+test games150000–150099, paired with the frozen1.15 policy on those same seeds.
+Retaining an unchanged control will not trigger another100-game test of that
+same policy to seek a lucky mean. No test outcomes select training settings,
+checkpoint or inference mode.
+
+The CPU seed precheck found no overlap with2084 recorded unique real seeds;
+it consumes no games and must be repeated before dispatch. The prepared
+launcher `artifacts/run_reference_round6_temperature_search.py` refuses to
+start until the current paired reports and independent CPU comparison are
+complete, the prior processes have exited and the exclusive GPU lock is free.
+It then requires CUDA preflight, current source/input hashes, preserved
+controls, and a fresh output path; it retains best/final, CMA optimizer and RNG.
+Its CPU `--check-only` correctly returned not-ready while the existing paired
+evaluation was live. Lint/format passed. Preparation started no GPU job, and
+evaluation sources were left unchanged during that preparation.
+
+After the completed paired CPU audit and confirmed prior process exit, the
+guarded1.25 search completed all500 generations. Its best fixed held-out dream
+score was889.296875 at generation210, versus initial768.1875; the final
+checkpoint scored698.296875. Independent CPU checks verified checkpoint,
+optimizer and RNG preservation, matched dream starting indices, and unchanged
+world/source fingerprints and original checkpoints. Artifact:
+`artifacts/doom_reference_round6_training_cpu_audit.json`. Dream scores at
+different temperatures do not establish real survival performance.
+
+The serial four-policy real validation supervisor is now running. Its first
+policy's CUDA matrix multiplication and convolution backward preflight passed
+on the RTX4070Ti, and21/80 games were complete when this status was checked.
+The current process/session and logs are recorded in `artifacts/task_state.json`.
+No reserved test has been started for this comparison.
+
+`src/doom_reference_selection.py` verifies matching validation cohorts and
+distinct policies, prefers controls on ties, and permits reserved testing only
+when an updated candidate wins validation. The CPU completion auditor accepts
+`--protocol` to verify the preregistered80-game validation cohort,100-game test
+cohort and frozen1.15 paired control. New fixtures reject duplicate policies,
+missing or mismatched games, wrong cohorts and substituted controls. An
+isolated supervisor fixture also verified that retaining a control starts no
+reserved test; its synthetic scores are not experiment results.
+
+Previous commit validation: all49 tests passed on CPU, including dream rollout timing,
 CMA/RNG restoration, captured-failure recovery and result-selection audits.
 Ruff lint/format checks and `git diff --check` passed. The existing reserved
 real-game evaluation continued independently; these checks launched no GPU work.
