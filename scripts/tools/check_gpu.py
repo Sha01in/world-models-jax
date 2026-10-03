@@ -42,6 +42,9 @@ def main():
                     (2, 2),
                     "VALID",
                     dimension_numbers=("NCHW", "OIHW", "NCHW"),
+                    # This smoke check expects a known FP32 result. Reduced
+                    # multiplication precision can round 1/48 enough to fail it.
+                    precision=jax.lax.Precision.HIGHEST,
                 )
                 return jnp.mean(out**2)
 

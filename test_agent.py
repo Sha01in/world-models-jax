@@ -5,11 +5,10 @@ os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 import jax
 import jax.numpy as jnp
-import equinox as eqx
 import cv2
 import os
 import argparse
-from src.vae import VAE
+from src.vae import load_vae
 from src.controller import get_action_linear, get_action_mlp
 from src.config import get_config
 from src.env_utils import make_env
@@ -36,8 +35,7 @@ def load_models(env_name, config, checkpoint_dir=None, controller_path=None):
     )
 
     key = jax.random.PRNGKey(0)
-    vae = VAE(latent_dim=config.latent_dim, key=key)
-    vae = eqx.tree_deserialise_leaves(vae_path, vae)
+    vae = load_vae(vae_path, config.latent_dim, key)
 
     rnn = load_rnn(rnn_path, config)
 

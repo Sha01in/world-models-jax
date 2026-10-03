@@ -55,11 +55,16 @@ def main():
     )
     if selected.get("mean_latents_override", False):
         payload["posterior_sampling"] = False
+    if "inference_posterior_sampling" in selected:
+        payload["posterior_sampling"] = selected["inference_posterior_sampling"]
     payload["selected_validation_mean"] = selected["mean"]
     payload["selection_episodes"] = selected["episodes"]
     output.mkdir(parents=True, exist_ok=True)
     for path in (base / "vae.eqx", base / "rnn.eqx", base / "rnn.eqx.json"):
         shutil.copy2(path, output / path.name)
+    vae_sidecar = base / "vae.eqx.json"
+    if vae_sidecar.exists():
+        shutil.copy2(vae_sidecar, output / vae_sidecar.name)
     destination = output / "controller_dream.npz"
     np.savez(destination, **payload)
     source_settings = Path(str(source) + ".json")

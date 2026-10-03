@@ -16,6 +16,33 @@ import numpy as np
 
 from src.config import get_config
 from src.rnn import load_rnn
+from src.vae_data import file_sha256, transition_signature
+
+
+def audit_latents(data, rng, sample_posterior, legacy_float16=False):
+    """Match train_rnn.load_batch, retaining the old rounding only on request."""
+    z = data["mu"].copy() if legacy_float16 else data["mu"].astype(np.float32)
+    if sample_posterior:
+        noise = rng.standard_normal(z.shape)
+        if not legacy_float16:
+            noise = noise.astype(np.float32)
+        z += np.exp(0.5 * data["logvar"]) * noise
+    if not np.isfinite(z).all():
+        raise FloatingPointError("Nonfinite audit latents")
+    return z
+
+
+def death_counts(scores, dones):
+    scores, dones = np.asarray(scores), np.asarray(dones, bool)
+    if scores.shape != dones.shape or not np.isfinite(scores).all():
+        raise ValueError("Death scores/labels are invalid or unaligned")
+    predicted = scores >= 0.5
+    return dict(
+        fatal_transitions=int(dones.sum()),
+        detected_deaths=int(np.count_nonzero(predicted & dones)),
+        live_transitions=int((~dones).sum()),
+        false_deaths=int(np.count_nonzero(predicted & ~dones)),
+    )
 
 
 def main():
@@ -25,6 +52,11 @@ def main():
     parser.add_argument("--episodes", type=int, default=256)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default="artifacts/doom_audit.json")
+    parser.add_argument(
+        "--legacy-float16-posterior",
+        action="store_true",
+        help="Reproduce historical audit rounding; default matches float32 training inputs",
+    )
     parser.add_argument(
         "--mean_latents",
         action="store_true",
@@ -41,6 +73,10 @@ def main():
         help="Compare models on the same recorded validation-file list",
     )
     args = parser.parse_args()
+    if args.episodes < 1:
+        parser.error("Episode count must be positive")
+    if Path(args.output).exists():
+        raise FileExistsError("Preserve existing audits; use a fresh output path")
     rng = np.random.default_rng(args.seed)
     files = sorted(Path(args.data_dir).glob("*.npz"))
     metadata_path = Path(args.rnn + ".json")
@@ -52,6 +88,8 @@ def main():
             else metadata
         )
         files = [Path(f) for f in split_metadata["validation_files"]]
+    if not files:
+        raise ValueError("No audit episodes found")
     chosen = rng.choice(len(files), min(args.episodes, len(files)), replace=False)
     cfg = get_config("VizdoomTakeCover-v0")
     model = load_rnn(args.rnn, cfg)
@@ -76,6 +114,7 @@ def main():
     lengths, terminal_probs, early_probs, live_probs = [], [], [], []
     posterior_std, predictive_std, residuals, rewards, mean_latents = [], [], [], [], []
     internal_dones = missing_dones = invalid = censored = 0
+    episode_records = []
     for offset in range(0, len(chosen), 16):
         batch = []
         for index in chosen[offset : offset + 16]:
@@ -86,11 +125,13 @@ def main():
         for i, d in enumerate(batch):
             n = len(d["mu"])
             if any(len(d[k]) != n for k in ("actions", "rewards", "dones", "logvar")):
-                invalid += 1
-                continue
-            z = d["mu"].copy()
-            if metadata.get("posterior_sampling", False) and not args.mean_latents:
-                z += np.exp(0.5 * d["logvar"]) * rng.standard_normal(z.shape)
+                raise ValueError("Audit episode has inconsistent transition lengths")
+            z = audit_latents(
+                d,
+                rng,
+                metadata.get("posterior_sampling", False) and not args.mean_latents,
+                args.legacy_float16_posterior,
+            )
             a = d["actions"]
             if metadata.get("canonical_actions", False):
                 a = np.where(a < -0.3, -1.0, np.where(a > 0.3, 1.0, 0.0))
@@ -100,6 +141,14 @@ def main():
             n = len(d["mu"])
             lengths.append(n)
             is_done = np.asarray(d["dones"], bool)
+            episode_records.append(
+                dict(
+                    path=str(files[chosen[offset + i]]),
+                    transition_signature=transition_signature(d),
+                    frames=n,
+                    counts=death_counts(probs[:n, i], is_done),
+                )
+            )
             internal_dones += int(is_done[:-1].sum())
             censored += int(not is_done[-1] and n == 2100)
             missing_dones += int(not is_done[-1] and n != 2100)
@@ -132,12 +181,21 @@ def main():
 
     report = {
         "rnn": args.rnn,
+        "rnn_sha256": file_sha256(args.rnn),
+        "device": str(jax.devices()[0]),
+        "inference_batch_size": 16,
+        "posterior_input_protocol": "historical_storage_dtype_rounding"
+        if args.legacy_float16_posterior
+        else "train_rnn_float32_inputs_and_noise",
         "data_dir": args.data_dir,
         "available_episodes": len(files),
         "sampled_episodes": len(lengths),
         "seed": args.seed,
         "heldout": args.heldout,
         "mean_latents_override": args.mean_latents,
+        "inference_posterior_sampling": bool(
+            metadata.get("posterior_sampling", False) and not args.mean_latents
+        ),
         "validation_manifest": args.validation_manifest,
         "done_positive_weight": metadata.get("done_positive_weight", 1.0),
         "death_score_semantics": "Sigmoid of weighted-BCE logit; this is a detection score, not a calibrated probability",
@@ -160,12 +218,17 @@ def main():
         "rnn_std_per_dimension": np.mean(predictive_std, axis=0).tolist(),
         "latent_mean_std_per_dimension": np.mean(mean_latents, axis=0).tolist(),
         "teacher_forced_latent_mse": stats(residuals),
+        "episode_records": episode_records,
     }
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(report, indent=2) + "\n")
     print(
         json.dumps(
-            {k: v for k, v in report.items() if not k.endswith("per_dimension")},
+            {
+                k: v
+                for k, v in report.items()
+                if not k.endswith("per_dimension") and k != "episode_records"
+            },
             indent=2,
         )
     )

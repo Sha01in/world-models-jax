@@ -2,6 +2,12 @@
 
 Branch: `feat/vizdoom`. Hardware: RTX 4070 Ti, Ubuntu under WSL2.
 
+**Final status, 2026-10-03:** the reproduction effort is stopped on observed
+diminishing returns. Three completed follow-up loops established no reliable
+paired improvement; the paper's 1092-step mean remains unmatched. All GPU jobs
+have exited, checkpoints are preserved, and no further experiment is queued.
+The final measurements and stopping rationale are recorded below.
+
 ## GPU and training performance
 
 WSL initially could not access the GPU. The authorized WSL restart restored CUDA
@@ -243,6 +249,190 @@ Run status and arguments: `artifacts/doom_packed_long.status`,
 `artifacts/doom_packed_long.log`, `artifacts/doom_packed_manifest.json`, and
 `checkpoints/VizdoomTakeCover-v0/reproduction_packed_long/rnn.eqx.json`.
 
+### Early stop and next refinement
+
+The continued packed run was deliberately stopped after a fully saved **epoch
+255 of 400**, rather than resumed to its original budget. Its best full-episode
+held-out loss was **1.033261 at epoch 1** and never improved. At epoch 255,
+training loss was 0.963839 and validation loss 1.106310. Both the best and last
+models were frozen with matching VAE and metadata in
+`reproduction_packed_stopped_255_best/` and
+`reproduction_packed_stopped_255_latest/`. The last model's optimizer count was
+verified against global step 29305; optimizer, history and RNG state are retained
+for resumption. Stop reason and file hashes: `artifacts/doom_packed_early_stop.json`.
+
+A paired posterior-sampled audit used the same 256 historical holdout episodes
+and all 100 previous policy-failure holdouts, with seed 42 for all three models.
+At a detection threshold of 0.5:
+
+| World model | Historical death recall | New death recall | New live-frame false death rate |
+| --- | ---: | ---: | ---: |
+| Packed best, epoch 1 | 77.73% | 46% | 0.208% |
+| Packed latest, epoch 255 | 54.69% | 40% | 0.116% |
+| Frozen 840-step incumbent | 72.66% | 49% | 0.305% |
+
+The later model reduced teacher-forced latent MSE and false alarms, but detected
+fewer actual held-out deaths at this threshold. These death scores come from
+weighted BCE and are not calibrated probabilities. The audit does not establish
+which model produces a better controller; no new real-game score is available.
+Reports: `artifacts/doom_packed_stop_audit_comparison.json` and the individual
+`doom_packed_stop_*_audit.json` files.
+
+The next iteration collects 1000 fresh training episodes from the frozen
+incumbent using eight environments, CUDA inference, mean latents, no warmup,
+and initial seed 50000. Collection survival statistics are training-data
+statistics, not a new independent test result. The split retains all 870 prior
+holdouts and reserves 100 of the new episodes. The planned refinement uses a
+maximum of ten epochs at learning rate 0.0001, validation after each epoch, and
+patience three. `train_rnn.py --save_best --early_stopping_patience 3` evaluates
+the starting model as an eligible epoch-zero checkpoint, preserves matching
+weights, optimizer and RNG for both best and last models, and stops if validation
+fails to improve. Two integration tests exercise degrading refinement and an
+improvement followed by three worse epochs; all 15 regression tests passed on
+CUDA. Best-checkpoint selection precedes controller optimization. Reserved real
+validation seeds 13000–13019 and
+final test seeds 40000–40099 remain separate. Data-job status and provenance:
+`artifacts/doom_refinement_round2_data.status` and
+`artifacts/doom_refinement_round2_collection.json`.
+
+Collection and encoding completed on 2026-10-03: 1000 episodes, 797,382 frames,
+970 physical deaths and 30 timeouts. Collection survival was 797.38 ± 494.12;
+this is a training-cohort statistic, not an independent controller test. The
+selected pool has 3460 training and 970 validation episodes. All 4430 episodes
+are unique, with no duplicate leakage, inconsistent lengths or internal terminal
+labels. Reports: `artifacts/doom_refinement_round2_integrity.json` and
+`artifacts/doom_refinement_round2_coverage.json`.
+
+The short CUDA refinement stopped after epoch 6, selecting **epoch 3**. On its
+fixed validation split the starting model scored 1.045809, best loss was
+1.036670 and last loss was 1.037441. Best weights, matching optimizer and RNG
+were frozen in `reproduction_refined_round2_selected_world/`; final weights
+remain in `reproduction_refined_round2/`.
+These losses use this run's split and aggregation and should not be compared
+directly with the earlier packed run. Best and last checkpoints remain separate.
+Real-game selection and the completed paired test are recorded below.
+
+Paired posterior audits compared the selected world with the unchanged incumbent:
+
+| Holdout cohort | Incumbent death recall | Refined death recall | Incumbent / refined live-frame false death rate |
+| --- | ---: | ---: | ---: |
+| Historical, 256 episodes | 72.66% | 76.17% | 0.430% / 0.480% |
+| Previous failures, 100 episodes | 49% | 54% | 0.305% / 0.262% |
+| Current policy, 100 episodes | 43% | 53% | 0.154% / 0.172% |
+
+Using mean latents on the current-policy holdouts, recall improved from 46% to
+55%, with false death rates 0.160% and 0.183%. Latent MSE also decreased in each
+cohort. These are detection-threshold diagnostics, not gameplay results or proof
+of calibrated death probabilities. Full reports:
+`artifacts/doom_refinement_round2_audit_comparison.json`.
+
+Two 500-generation CMA searches completed on the selected world at temperature
+1.15, one with threshold death and one with sampled death. They share seed 63,
+start-state data, population 64, 16 rollouts per candidate and batch 64. A separate
+temperature comparison also completed on an unchanged copy of the incumbent world
+at 1.0, 1.15 and 1.3, all with seed 64, sampled death, the original start-state
+data, the same incumbent initialization and the same 500-generation budget.
+The extra 1.15 run controls for the additional optimization budget; the untouched
+840-step policy remains an additional baseline. At most two searches run at once.
+Arguments, hashes and individual status paths:
+`artifacts/doom_round2_controller_jobs.json`.
+All five finished without search errors. Their best dream validation scores were
+1153.72 (refined threshold), 1150.44 (refined sampled), and 1482.33 / 1222.08 /
+967.42 (unchanged-world temperatures 1.0 / 1.15 / 1.3). These do not establish
+real performance. Real validation compared each controller and the unchanged
+incumbent under both mean and posterior inference on seeds 13000–13019; selection
+preceded the reserved paired 100-game test. Supervisor status:
+`artifacts/doom_round2_real_evaluations.status`.
+
+## Final round-two real-game results (2026-10-03)
+
+All twelve combinations used the same twenty validation seeds 13000–13019:
+
+| Controller | Mean-latent validation mean | Posterior validation mean |
+| --- | ---: | ---: |
+| Refined world, threshold death, temperature 1.15 | 934.40 | 892.00 |
+| Refined world, sampled death, temperature 1.15 | 718.40 | 612.75 |
+| Unchanged world, sampled death, temperature 1.0 | 847.05 | 853.70 |
+| Unchanged world, sampled death, temperature 1.15 | 876.60 | 668.40 |
+| Unchanged world, sampled death, temperature 1.3 | **938.85** | 837.20 |
+| Unchanged incumbent controller | 778.55 | 808.00 |
+
+The predefined maximum-validation-mean rule selected the temperature-1.3 policy
+with mean-latent inference. Its VAE, RNN, controller and selection provenance were
+frozen in `reproduction_round2_real_selected/` before reserved test outcomes were
+observed. Its world is identical to the incumbent world; this selected result
+therefore concerns the separate temperature/controller experiment, not a new-data
+world improvement. The refined threshold candidate was close on validation but
+was not tested after selection. Twenty games and one CMA seed per condition do
+not establish a general temperature ranking.
+
+Both frozen policies then ran on the same 100 fresh test seeds 40000–40099:
+
+| Policy | Mean ± population SD | Bootstrap 95% interval for mean |
+| --- | ---: | ---: |
+| Validation-selected temperature-1.3 policy | **775.85 ± 496.21** | 680.66–874.54 |
+| Unchanged incumbent | **728.75 ± 483.70** | 635.61–825.00 |
+
+Paired mean improvement was **47.10 steps**, with percentile bootstrap 95%
+interval **−51.60 to +146.61** (50,000 resamples, seed 73400). The selected policy
+survived longer in 52 games, the incumbent in 45, and three tied. This cohort
+does not establish a reliable improvement. The selected sample mean exceeds the
+paper's 750-step criterion, but its mean interval includes values below 750 and
+the score remains below the paper's 1092 mean. The incumbent's earlier
+840.06 ± 524.48 result on seeds 30000–30099 is retained separately; different
+seed cohorts must not be treated as a paired comparison. Neither controller was
+chosen or retrained using these final test outcomes.
+
+Protocol remains a reused VAE with full-frame preprocessing, a controller bias,
+mean real-game latents and sampled-death dream training, with no forced warmup,
+a 2100-step cap and CUDA inference. These are extensions to the original paper.
+Eight game workers preserve the serial calculation shapes and per-seed RNG;
+replay checks matched existing serial outcomes. Fingerprints verified the frozen
+models after both tests, including the unchanged incumbent controller.
+Reports: `artifacts/doom_round2_selected_test100.json`,
+`artifacts/doom_round2_incumbent_paired_test100.json`, and
+`artifacts/doom_round2_paired_comparison.json`.
+
+This is the requested stopping point. All experiment training and evaluation
+processes have exited; no additional GPU work is queued. Original checkpoints,
+the earlier incumbent, selected policy, refined best/last models, optimizer states
+and datasets remain intact. No further loop, benchmark or video will run without
+a new request. Resume instructions are in `artifacts/task_state.json`.
+
+## GPU throughput checks (2026-10-03)
+
+With two searches running, twelve samples measured 97–99% GPU activity,
+roughly 2.6 GiB allocated VRAM, 55–62°C and a stable 2820 MHz core clock.
+GPU activity measures time with a kernel executing; it does not measure peak
+compute efficiency. A controlled benchmark on the same frozen world, initial
+controller, starts and noise compared one and two processes after three warmup
+generations. Each process measured eight generations with population 64,
+16 rollouts and length 2100. A barrier synchronized the measurement windows;
+each GPU stage was synchronized before timing. One process achieved 2.239
+generations/second versus 1.923 combined with two, about 16% higher throughput
+for serial searches. The dream stage accounted for about 94% of the single-job
+GPU loop. Future jobs use one GPU process at a time for this workload. This is
+a short benchmark, not a guarantee for different batch sizes or models.
+Report: `artifacts/doom_search_concurrency_benchmark_synchronized.json`.
+
+The real evaluator now supports `--workers 8`, with spawned games, per-seed
+posterior RNG, explicit masked reseeding and reset LSTM states. Policy inference
+and memory updates share one GPU call. Single-game calculation shapes are
+preserved using `lax.map`: a direct `vmap` trial changed recurrent trajectories
+and was rejected. Twenty mean-latent games matched the original frozen test
+exactly in survival, rewards and action counts; eight posterior games matched
+the serial evaluator exactly. In an eight-game benchmark with other searches
+active, mean evaluation decreased from 18.943 to 14.887 seconds (1.27×).
+These times include worker startup and compilation but exclude model loading;
+they are not a full overnight speedup estimate. Seed/memory scheduling and
+freezing explicit inference metadata passed regression tests. The GPU smoke
+check now requests full multiplication precision for its known-value convolution
+check, avoiding a false failure from reduced-precision rounding without changing
+experiment inference precision.
+Reports: `artifacts/doom_gpu_bench_mean_workers8_map.json`,
+`artifacts/doom_gpu_bench_mean_reseed20_map.json`, and
+`artifacts/doom_gpu_bench_posterior_workers8_map.json`.
+
 ## Reproducing and inspecting runs
 
 ```bash
@@ -265,7 +455,7 @@ uv run python train_dream.py --env VizdoomTakeCover-v0 --strategy jax_cma \
   --temperature 1.15 --seed 43
 uv run python scripts/tools/evaluate_doom.py \
   --checkpoint-dir checkpoints/VizdoomTakeCover-v0/new_experiment \
-  --episodes 100 --seed 30000 --output artifacts/new_experiment_test100.json
+  --episodes 100 --seed 30000 --workers 8 --output artifacts/new_experiment_test100.json
 ```
 
 Use a fresh output name for each controller search. Exact completed-run arguments,
@@ -284,3 +474,169 @@ matched its separate evaluator's 250-step result.
 Reference code: [Doom simulator](https://github.com/hardmaru/WorldModelsExperiments/blob/master/doomrnn/doomrnn.py),
 [real Doom wrapper](https://github.com/hardmaru/WorldModelsExperiments/blob/master/doomrnn/doomreal.py),
 [RNN training](https://github.com/hardmaru/WorldModelsExperiments/blob/master/doomrnn/rnn_train.py).
+
+## Next iteration: vision audit and architecture comparison
+
+CPU preparation for the new iteration is recorded in
+[the vision experiment protocol](vizdoom_vision_experiment.md). The original
+840.06-step incumbent and the completed paired round-two results remain
+unchanged. The active goal now resumes bounded GPU experiments: CUDA preflight
+passed and a serial current/reference VAE comparison started at 11:15 UTC on
+2026-10-03. Progress and model provenance are recorded in the linked protocol
+and `artifacts/doom_vision_round3_vae_jobs.json`.
+
+Both 20-epoch pilots are complete (current held-out loss 45.2557, reference
+46.0313). Because both were still improving, a serial continuation to at most
+60 total epochs completed in fresh directories; see
+`artifacts/doom_vision_round3_vae_extension_jobs.json`. No new real survival
+result has been established.
+
+The initial atlas shows the reused VAE preserving large approaching fireballs.
+A fixed linear probe of its means on 100 separate newer holdout episodes gave
+AUC 0.8872 for larger bright-color components and 0.7094 for smaller components.
+These are color-based proxies without verified projectile labels; they support
+investigating earlier/smaller visual cues but do not identify the gameplay
+bottleneck. The shared data pool, reference VAE architecture and validated
+training/encoding path support the running controlled comparison. No dream or
+reconstruction result will substitute for real survival.
+
+Both 60-epoch VAEs and the fixed vision diagnostics are now complete. Current
+held-out VAE loss is 42.6414; reference geometry is 43.4174. Current reconstructs
+the small audit cohort better but does not establish classification-proxy gains
+and increases horizontal position error. Reference geometry scores worse on
+both color-component proxies. Full paired intervals and limitations are in the
+[vision protocol](vizdoom_vision_experiment.md#completed-feature-comparison-and-downstream-decision).
+The next bounded test uses the fixed incumbent VAE and current epoch-60 VAE,
+each with a fresh matched RNN/controller pipeline. The unchanged incumbent
+policy remains the real survival control; all original checkpoints are retained.
+
+The matched fresh RNNs and six 500-generation controller searches are complete.
+Best RNN epochs were 15 (incumbent VAE) and 18 (current VAE), with matching
+weights/Adam/RNG bundles verified and final states preserved. Current's RNN
+missed more deaths than the fresh control on both fixed holdout cohorts,
+despite fewer false alarms. These audits use corrected float32 posterior
+inputs; legacy reports used float16 rounding. Neither model loss nor dream
+scores establish a survival gain.
+
+Real evaluation started at approximately 14:22 UTC on 2026-10-03. Fourteen
+fixed policy/inference combinations receive 100 common validation games on
+fresh seeds 60000–60099. The winner is frozen using validation only, then
+tested against the unchanged mean-inference incumbent on reserved seeds
+80000–80099. One GPU job runs at a time with eight game workers. Full protocol,
+measured audit results and provenance are in the
+[vision experiment record](vizdoom_vision_experiment.md#completed-fresh-rnns-and-death-audits).
+All fourteen validation combinations and both reserved reports are now complete.
+The best new policy averaged 467.51 validation steps; the unchanged incumbent
+averaged 793.16 on the same seeds and was retained. The frozen selected policy
+has identical controller parameters to the original and scored **817.91 ±
+524.13** on test seeds 80000–80099, exactly matching the paired incumbent in
+all 100 games. Mean bootstrap interval is [717.39, 922.52]; paired improvement
+is zero. This iteration produced no improvement and remains below the paper.
+The original 840.06 report is a different cohort and remains unchanged.
+
+The next bounded pilot tests the preserved packed epoch-one best RNN against
+the unchanged incumbent world, with fixed original VAE/tau 1.15 and four
+matched 500-generation searches covering both termination modes. It does not
+resume packed training. Proposed fresh validation/test ranges, guards and
+limitations are recorded in the
+[vision protocol](vizdoom_vision_experiment.md#next-bounded-slice-preserved-rnn-transfer).
+
+CPU consolidation of the unchanged incumbent's three distinct reserved cohorts
+(seeds 30000, 40000 and 80000, 100 games each) gives a descriptive mean
+**795.57 ± 513.39** and cohort-stratified bootstrap mean interval
+**[738.40, 854.28]**. All report weight fingerprints match the original frozen
+incumbent and all 300 seeds are unique. Duplicate selected/paired copies are
+excluded. This does not replace the original 840.06 benchmark or establish an
+exact cross-study comparison: the oldest report lacks an explicit worker count
+and inference field; its saved controller metadata/override establish mean
+inference. Cohort protocols remain recorded and training uncertainty is excluded.
+Artifact: `artifacts/doom_incumbent_3_cohort_summary.json`. No new games were run
+and this descriptive analysis selects or tunes no policy.
+
+## Final frozen-world comparison and stopping decision
+
+All four frozen-RNN searches and ten real validation combinations completed.
+The original VAE, controller architecture and temperature 1.15 stayed fixed;
+both RNNs used the same incumbent controller initialization and CMA seed77.
+Each entry is mean survival over the same 100 validation seeds 90000–90099.
+
+| Frozen world / controller | Mean-latent inference | Posterior inference |
+| --- | ---: | ---: |
+| Incumbent / threshold | 825.38 | 745.97 |
+| Packed best / threshold | 756.63 | 752.15 |
+| Incumbent / sampled death | 802.56 | **879.74** |
+| Packed best / sampled death | 742.60 | 772.87 |
+| Unchanged original controller | 733.51 | 737.71 |
+
+Validation selected the incumbent-world sampled-death controller with posterior
+inference. Its world, policy, inference mode and all validation-report hashes
+were frozen before the reserved tests. On 100 fresh paired seeds
+110000–110099 it scored **853.53 ± 572.26**, versus **819.15 ± 478.46** for the
+unchanged original mean-inference incumbent (population SDs). The paired mean
+difference was **+34.38**, with 95% whole-game bootstrap interval
+**[-85.29, +156.04]**; 47 wins, 52 losses and one tie. The selected mean's
+interval is [743.72, 967.45]. These 50,000-resample intervals hold fitted
+policies fixed and exclude training variability. A reliable gain is not
+established. Test outcomes did not select or retrain a policy.
+
+The selected candidate remains in
+`checkpoints/VizdoomTakeCover-v0/frozen_transfer_round4_real_selected`;
+the canonical original remains in `reproduction_refined_selected`. Keeping
+the validation-selected candidate does not establish superiority on unseen
+games. The packed best was evaluated as frozen weights; the deliberately
+stopped epoch255 training run was never resumed. Its best has no saved best
+optimizer; its latest weights, optimizer and RNG remain preserved.
+
+Artifacts: `artifacts/doom_frozen_transfer_round4_real_evaluation_result.json`,
+`artifacts/doom_frozen_transfer_round4_frozen_selection.json`, and
+`artifacts/doom_frozen_transfer_round4_paired_comparison.json`.
+
+The unchanged incumbent's four distinct reserved cohorts (30000, 40000, 80000
+and 110000, 100 games each) give **801.47 ± 504.99** across 400 unique games,
+with cohort-stratified bootstrap mean interval **[752.44, 851.16]**. All three
+weight fingerprints match across the reports. Duplicate paired copies are
+excluded. This descriptive consolidation replaces neither the original
+**840.06 ± 524.48** cohort nor its protocol; the oldest report lacks explicit
+worker/inference fields, with mean inference established by its saved metadata
+and override. No additional games were run for this analysis. Artifact:
+`artifacts/doom_incumbent_4_cohort_summary.json`.
+
+The stopping decision uses the accumulated outcomes:
+
+| Completed loop | Selected minus unchanged incumbent, paired steps | 95% interval |
+| --- | ---: | ---: |
+| Fresh data/refinement and temperature comparison, round2 | +47.10 | [-51.60, +146.61] |
+| Vision and matched fresh downstream training, round3 | 0.00, unchanged incumbent retained | [0.00, 0.00] |
+| Frozen RNN and termination comparison, round4 | +34.38 | [-85.29, +156.04] |
+
+Round3's zero is an identical-policy check: all twelve new combinations lost
+to the incumbent on validation, so it is not evidence that other policies
+have zero uncertainty. The current VAE pipeline did outperform its matched
+fresh incumbent-VAE controls by 169.75–275.81 validation steps across the six
+CMA-seed/inference comparisons. Both fresh pipelines lost to the original
+incumbent; that comparison cannot isolate the VAE from RNN training history.
+The VAE result should not be described as an isolated VAE failure.
+
+Across these follow-ups, fifteen 500-generation controller searches, new
+policy-relevant data, short RNN refinement, two 60-epoch VAE comparisons and
+matched fresh downstream models produced no reliable improvement on the
+reserved real-game comparisons. Long packed training also failed to improve
+held-out loss after epoch1. Continuing small changes within these tested
+families has diminishing measured returns, so this effort stops here. This is
+an empirical resource decision, not a claim that 853 steps is a fundamental
+ceiling or that every possible future experiment will fail.
+
+The paper reports **1092 ± 556** at temperature 1.15 over 100 real games
+([primary paper](https://worldmodels.github.io/#cheating-the-world-model)).
+Our environment/preprocessing, sampled frame pool, training histories,
+initialization and affine controller differ from the reference procedure;
+round2's on-policy data is an extension. Reconstruction loss, weighted death
+scores and dream scores do not establish paper-level real performance. The
+remaining protocol differences are recorded in the linked vision protocol.
+
+All supervisors exited and final CPU analysis completed. The GPU is released
+from this repository's work. The five-minute follow-up is paused after
+completion; `artifacts/task_state.json` records consumed seeds, candidate and
+incumbent paths, and a future-resume boundary. A future GPU experiment needs a
+new request; completed test seeds must not become tuning or validation seeds.
+Completion verification is in `artifacts/doom_experiment_completion_audit.json`.

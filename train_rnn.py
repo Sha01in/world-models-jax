@@ -13,6 +13,7 @@ import sys
 import argparse
 import random
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from src.rnn import MDNRNN, load_rnn
 from src.config import get_config
@@ -23,6 +24,24 @@ BATCH_SIZE = 100
 LEARNING_RATE = 1e-3
 EPOCHS = 20
 MAX_SEQ_LEN = 2100
+
+
+@dataclass
+class ValidationStopper:
+    patience: int = 0
+    best_loss: float = float("inf")
+    best_epoch: int | None = None
+    bad_epochs: int = 0
+
+    def observe(self, epoch, value):
+        if not np.isfinite(value):
+            raise FloatingPointError("Non-finite held-out loss")
+        improved = value < self.best_loss
+        if improved:
+            self.best_loss, self.best_epoch, self.bad_epochs = value, epoch, 0
+        elif epoch > 0:
+            self.bad_epochs += 1
+        return improved, bool(self.patience and self.bad_epochs >= self.patience)
 
 
 def pad_sequence(sequences, max_len, pad_value=0.0):
@@ -293,6 +312,17 @@ def train():
     )
     parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE)
     parser.add_argument(
+        "--save_best",
+        action="store_true",
+        help="Preserve the best held-out model and optimizer alongside the last model",
+    )
+    parser.add_argument(
+        "--early_stopping_patience",
+        type=int,
+        default=0,
+        help="Stop after this many epochs without improvement; 0 disables stopping",
+    )
+    parser.add_argument(
         "--mean_latents",
         action="store_true",
         help="Disable VAE posterior sampling (ablation)",
@@ -318,6 +348,9 @@ def train():
         args.done_positive_weight = 10.0 if config.is_doom else 1.0
     if args.done_positive_weight <= 0 or args.learning_rate <= 0 or epochs < 1:
         parser.error("Death weight, learning rate and epochs must be positive")
+    if args.early_stopping_patience < 0:
+        parser.error("Early-stopping patience cannot be negative")
+    args.save_best = args.save_best or args.early_stopping_patience > 0
 
     # Paths
     if args.data_dir:
@@ -356,6 +389,15 @@ def train():
         all_files = all_files[n_val:]
     if not all_files:
         parser.error("No training episodes remain after validation split")
+    if args.save_best and not val_files:
+        parser.error("Best-checkpoint selection requires held-out episodes")
+    best_path = Path(model_path).with_name(Path(model_path).stem + "_best.eqx")
+    if args.save_best and (
+        Path(model_path).exists()
+        or best_path.exists()
+        or Path(str(best_path) + ".json").exists()
+    ):
+        parser.error("Use a fresh output path to preserve selected experiments")
     num_samples = len(all_files)
 
     key = jax.random.PRNGKey(args.seed)
@@ -418,6 +460,49 @@ def train():
             config.is_doom,
         )[0]
 
+    def validate():
+        val_rng = np.random.default_rng(args.seed + 1)
+        losses = [
+            float(
+                validation_loss(model, prepare(val_files[i : i + batch_size], val_rng))
+            )
+            for i in range(0, len(val_files), batch_size)
+        ]
+        return float(np.mean(losses)) if losses else None
+
+    def save_checkpoint(path, epoch, heldout_loss):
+        eqx.tree_serialise_leaves(path, model)
+        eqx.tree_serialise_leaves(str(path) + ".opt.eqx", opt_state)
+        Path(str(path) + ".json").write_text(
+            json.dumps(
+                dict(
+                    settings,
+                    trained_epochs=epoch,
+                    global_step=int(opt_state[1][0].count),
+                    validation_loss=heldout_loss,
+                ),
+                indent=2,
+            )
+            + "\n"
+        )
+        Path(str(path) + ".rng.json").write_text(
+            json.dumps(
+                dict(
+                    data_rng=rng.bit_generator.state, jax_key=np.asarray(key).tolist()
+                ),
+                indent=2,
+            )
+            + "\n"
+        )
+
+    stopper = ValidationStopper(args.early_stopping_patience)
+    if args.save_best:
+        baseline_loss = validate()
+        stopper.observe(0, baseline_loss)
+        save_checkpoint(best_path, 0, baseline_loss)
+        history.append(dict(epoch=0, validation_loss=baseline_loss, baseline=True))
+        print(json.dumps(history[-1]), flush=True)
+
     print(
         f"Starting RNN (Dream) training for {env_name} on {num_samples} sequences (Streaming)..."
     )
@@ -475,26 +560,35 @@ def train():
                     done=f"{l_done.item():.2f}",
                 )
 
-        val_rng = np.random.default_rng(args.seed + 1)
-        validation = [
-            float(
-                validation_loss(model, prepare(val_files[i : i + batch_size], val_rng))
-            )
-            for i in range(0, len(val_files), batch_size)
-        ]
+        heldout_loss = validate()
+        improved, stop = (
+            stopper.observe(epoch + 1, heldout_loss)
+            if args.save_best
+            else (False, False)
+        )
         history.append(
             {
                 "epoch": epoch + 1,
                 "training_loss": epoch_loss / steps_per_epoch,
-                "validation_loss": float(np.mean(validation)) if validation else None,
+                "validation_loss": heldout_loss,
+                "best_validation_epoch": stopper.best_epoch if args.save_best else None,
+                "epochs_without_improvement": stopper.bad_epochs,
             }
         )
         print(json.dumps(history[-1]), flush=True)
-        eqx.tree_serialise_leaves(model_path, model)
-        eqx.tree_serialise_leaves(model_path + ".opt.eqx", opt_state)
+        save_checkpoint(model_path, epoch + 1, heldout_loss)
+        if improved:
+            save_checkpoint(best_path, epoch + 1, heldout_loss)
         Path(model_path + ".history.json").write_text(
             json.dumps(history, indent=2) + "\n"
         )
+        if stop:
+            print(
+                f"Early stop at epoch {epoch + 1}; best held-out epoch "
+                f"{stopper.best_epoch}, loss {stopper.best_loss:.6f}: {best_path}",
+                flush=True,
+            )
+            break
 
     eqx.tree_serialise_leaves(model_path, model)
     print("RNN Training Complete.")

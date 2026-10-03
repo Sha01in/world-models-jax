@@ -13,7 +13,6 @@ os.environ.setdefault("JAX_PLATFORMS", "cuda")
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -22,7 +21,7 @@ from src.config import get_config
 from src.controller import get_action_linear, get_action_mlp
 from src.env_utils import make_env
 from src.rnn import load_rnn
-from src.vae import VAE
+from src.vae import load_vae
 
 
 def main():
@@ -40,14 +39,28 @@ def main():
         default="controller",
     )
     parser.add_argument("--output", default="artifacts/doom_evaluation.json")
-    parser.add_argument(
+    latents = parser.add_mutually_exclusive_group()
+    latents.add_argument(
         "--mean-latents",
         action="store_true",
         help="Ablation: use VAE means during real-game inference",
     )
+    latents.add_argument(
+        "--posterior-latents",
+        action="store_true",
+        help="Override controller metadata to sample the VAE posterior",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel games per fused GPU inference batch",
+    )
     args = parser.parse_args()
-    if args.episodes < 1 or args.warmup < 0:
-        parser.error("Episodes must be positive and warmup must be nonnegative")
+    if args.episodes < 1 or args.warmup < 0 or args.workers < 1:
+        parser.error("Episodes and workers must be positive; warmup nonnegative")
+    if args.workers > 1 and args.policy != "controller":
+        parser.error("Parallel evaluation currently supports controller policies")
     cfg = get_config("VizdoomTakeCover-v0")
     base = Path(args.checkpoint_dir)
     controller_path = (
@@ -64,7 +77,7 @@ def main():
 
     if args.policy == "controller":
         checkpoint_hashes = {p.name: digest(p) for p in checkpoint_paths}
-        vae = eqx.tree_deserialise_leaves(base / "vae.eqx", VAE(cfg.latent_dim, key))
+        vae = load_vae(base / "vae.eqx", cfg.latent_dim, key)
         rnn = load_rnn(base / "rnn.eqx", cfg)
         with np.load(controller_path) as data:
             params = jnp.asarray(data["params"])
@@ -75,6 +88,8 @@ def main():
         posterior = bool(metadata.get("posterior_sampling", False))
         if args.mean_latents:
             posterior = False
+        elif args.posterior_latents:
+            posterior = True
         canonical = bool(metadata.get("canonical_actions", False))
 
         @jax.jit
@@ -106,11 +121,36 @@ def main():
                 )
             return rnn(jnp.concatenate([z, action]), hidden)[1]
 
-    env = make_env("VizdoomTakeCover-v0", render_mode="rgb_array")
+    env = (
+        make_env("VizdoomTakeCover-v0", render_mode="rgb_array")
+        if args.workers == 1
+        else None
+    )
     records = []
     started = time.monotonic()
     try:
-        for episode in range(args.episodes):
+        if args.workers > 1:
+            from src.doom_evaluation import make_batched_policy, evaluate_parallel
+
+            policy = make_batched_policy(
+                vae,
+                rnn,
+                params,
+                posterior=posterior,
+                canonical=canonical,
+                state_mode=state_mode,
+                controller_type=controller_type,
+                hidden_size=hidden_size,
+                warmup=args.warmup,
+            )
+            records = evaluate_parallel(
+                policy,
+                episodes=args.episodes,
+                seed=args.seed,
+                workers=args.workers,
+                hidden_size=cfg.hidden_size,
+            )
+        for episode in range(args.episodes if args.workers == 1 else 0):
             seed = args.seed + episode
             # Explicitly seed the game even with the legacy wrapper.
             env.game.set_seed(seed)
@@ -154,7 +194,8 @@ def main():
                     flush=True,
                 )
     finally:
-        env.close()
+        if env is not None:
+            env.close()
     scores = np.asarray([r["survival_steps"] for r in records], float)
 
     if args.policy == "controller" and checkpoint_hashes != {
@@ -170,6 +211,11 @@ def main():
         "seed_start": args.seed,
         "warmup_steps": args.warmup,
         "mean_latents_override": args.mean_latents,
+        "posterior_latents_override": args.posterior_latents,
+        "inference_posterior_sampling": posterior
+        if args.policy == "controller"
+        else None,
+        "workers": min(args.workers, args.episodes),
         "mean": float(scores.mean()),
         "std": float(scores.std()),
         "standard_error": float(scores.std(ddof=1) / np.sqrt(len(scores)))

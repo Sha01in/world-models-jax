@@ -5,7 +5,7 @@ import equinox as eqx
 import glob
 import os
 from tqdm import tqdm
-from src.vae import VAE
+from src.vae import load_vae
 
 import argparse
 import hashlib
@@ -66,9 +66,8 @@ def process_data():
 
     print(f"Loading VAE from {vae_path}...")
     # Initialize VAE
-    model = VAE(latent_dim=config.latent_dim, key=jax.random.PRNGKey(0))
     try:
-        model = eqx.tree_deserialise_leaves(vae_path, model)
+        model = load_vae(vae_path, config.latent_dim)
     except Exception as e:
         print(f"Error loading VAE: {e}")
         print(
