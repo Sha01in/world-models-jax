@@ -1000,3 +1000,55 @@ in [the reproduction audit](vizdoom_reproduction.md).
 * Commit checks: all52 tests passed on CPU. Ruff lint and formatting checks
   passed for the changed Python files, and `git diff --check` passed. The
   existing real validation supervisor remained running during these checks.
+* Round6's first complete80-game validation control, frozen1.15 generation270
+  with posterior inference, scored **904.83 ±511.93**,78 deaths/2 timeouts;
+  fixed-policy mean95% **[795.51,1017.71]** (50,000 whole-game resamples,
+  seed74180). Exact cohort and controller/input/source fingerprints passed
+  independent CPU verification. Supplied control and both new1.25 cases remain
+  to finish; no reserved test or policy selection has occurred. Artifact:
+  `doom_reference_round6_prior_control_validation_cpu_audit.json`.
+* CPU training-history review found52 checks of a fixed64-dream cohort in each
+  search. Top-two dream-score gaps14.34 at1.15 and38.41 at1.25 do not establish
+  overfitting without per-rollout variance. The paper's1024-rollout Doom check
+  motivates a larger dream validation cohort as a follow-up hypothesis;
+  no new GPU job was started or queued. Artifact:
+  `doom_reference_dream_selection_cpu_review.json`.
+* The supplied control subsequently finished80 validation games at **923.11
+  ±544.26**,77 deaths/3 timeouts, mean95% **[805.55,1045.21]**. Prior1.15
+  minus supplied paired gain **−18.29**,95% **[−156.40,+119.00]**,38 wins/
+  36 losses/6 ties. Exact cohorts, shared world/protocol and fingerprints
+  passed the CPU check; these descriptive validation results establish no
+  clear control advantage. The new1.25 best/final cases remain to finish;
+  no winner or reserved test yet. Artifact:
+  `doom_reference_round6_controls_validation_cpu_audit.json`.
+* CPU inspection of the preserved optimizer states found final CMA scales
+  0.01452 and0.01512 from initial0.02. First/last50-generation population
+  dream means916.04/900.91 at1.15 and738.11/727.46 at1.25 show no upward
+  aggregate trend, without proving a cause or real-policy improvement.
+  Artifact: `doom_reference_optimizer_progress_cpu_review.json`.
+* Round6 subsequently completed all four80-game validations. Supplied control
+  won at **923.11 ±544.26**, versus prior1.15 **904.83 ±511.93**, new1.25 best
+  **914.99 ±521.24** and final **914.28 ±514.03**. New-best-minus-supplied
+  paired gain **−8.13**,95% **[−131.61,+116.06]**; final gain **−8.84**,95%
+  **[−155.79,+134.65]**. No new policy won, so reserved150000–150099 games
+  were not consumed. The independent CPU closure verified actual records,
+  selection, source/input/controller hashes and absence of reserved reports.
+  Both evaluation processes exited. Artifact:
+  `doom_reference_round6_validation_closure_cpu_audit.json`.
+* Round7's preregistered local controller search completed500 generations on
+  CUDA at temperature1.15, sigma0.005 and1024 fixed dream validation rollouts.
+  All other training settings match the earlier1.15 search. Best dream score
+  **950.0654** at generation120, initial928.0801 and final911.2314 establish
+  no real survival result. Best/final and optimizer are preserved; independent
+  training-state review and real evaluation are pending. Protocol and result:
+  `doom_reference_round7_fine_search_protocol.json` and
+  `doom_reference_round7_fine_search_result.json`.
+* Round7 reserves80 fresh validation seeds130100–130179. Only an updated new
+  winner gets100 reserved160000–160099 tests, paired with the highest control
+  chosen and frozen by validation. The CPU auditor now checks that control
+  identity and rejects substitution. The sigma/validation changes form one
+  package, so this comparison cannot isolate their individual effects.
+* Commit validation: six relevant CPU regression tests passed, including
+  fixed-control compatibility and rejection of an incorrect validation-selected
+  paired control. Ruff lint/format and `git diff --check` passed. These checks
+  started no GPU work.

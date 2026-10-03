@@ -416,17 +416,85 @@ world/source fingerprints and original checkpoints. Artifact:
 `artifacts/doom_reference_round6_training_cpu_audit.json`. Dream scores at
 different temperatures do not establish real survival performance.
 
-The serial four-policy real validation supervisor is now running. Its first
-policy's CUDA matrix multiplication and convolution backward preflight passed
-on the RTX4070Ti, and21/80 games were complete when this status was checked.
-The current process/session and logs are recorded in `artifacts/task_state.json`.
-No reserved test has been started for this comparison.
+All four posterior-inference policies completed the same80 validation games
+on seeds130020–130099. CUDA preflight passed before evaluation.
+
+| Policy | Mean ± population SD | Paired difference from supplied | 95% paired interval |
+| --- | ---: | ---: | ---: |
+| Frozen1.15 generation270 | 904.83 ±511.93 | −18.29 | [−156.40,+119.00] |
+| Supplied control | **923.11 ±544.26** | — | — |
+| New1.25 best, generation210 | 914.99 ±521.24 | −8.13 | [−131.61,+116.06] |
+| New1.25 final, generation500 | 914.28 ±514.03 | −8.84 | [−155.79,+134.65] |
+
+Validation retained the supplied control. Neither new candidate won, so the
+reserved100-game cohort150000–150099 was not consumed. These descriptive
+intervals use50,000 paired whole-game resamples, seed74180, and hold fitted
+policies fixed; they exclude training and selection variability. They establish
+no reliable improvement or1092-step result.
+
+The independent CPU closure recomputed the selection from actual ordered game
+records, verified source/world/controller and report fingerprints, and checked
+that no reserved reports or partial games existed. Both evaluation processes
+exited. Artifact:
+`artifacts/doom_reference_round6_validation_closure_cpu_audit.json`.
+
+A CPU-only training-history review confirmed52 dream checkpoint checks reused
+the fixed64-rollout cohort in each search. The top two recorded dream scores
+differ by14.34 at1.15 and38.41 at1.25. These aggregate gaps cannot establish
+selection noise or overfitting without per-rollout variance. The
+[paper's Doom appendix](https://worldmodels.github.io/#doomrnn) evaluated its
+best controller over1024 dream rollouts. Increasing dream validation to1024
+is therefore a source-backed follow-up hypothesis to reduce small-cohort
+selection noise, not a promised real-game gain. Review artifact:
+`artifacts/doom_reference_dream_selection_cpu_review.json`. The review itself
+started no GPU job and used no reserved-test outcomes.
+
+Inspection of the preserved, hashed500-generation optimizer states found
+final CMA scales0.01452 at1.15 and0.01512 at1.25, from initial0.02. Aggregate
+population dream fitness averaged916.04 then900.91 over the first/last50
+generations at1.15, and738.11 then727.46 at1.25. These descriptive means show
+no upward trend and provide no basis to assume simply extending the same
+search will improve real survival. They do not establish optimizer collapse
+or a causal explanation: candidates change and share random dream streams.
+CPU artifact: `artifacts/doom_reference_optimizer_progress_cpu_review.json`.
+
+## Smaller controller search with larger dream validation
+
+The preregistered round7 recipe returns to temperature1.15 on the unchanged
+public world and starting policy. Compared with the previous1.15 search,
+initial CMA sigma changes from0.02 to0.005 and fixed dream validation grows
+from64 to1024 rollouts. Seed91,500 generations,population64,16 fitness trials,
+candidate batch64 and validation every10 generations remain fixed. This
+tests the two changes together and cannot attribute an effect to either alone.
+
+The CUDA search completed500 generations at2026-10-03T23:22:55Z. Its best
+1024-dream score was950.0654 at generation120, versus initial928.0801; final
+CMA mean scored911.2314. Best/final checkpoints and optimizer are preserved.
+These are dream scores; independent training-state review and real validation
+remain pending. The search supervisor and child have exited.
+
+The frozen protocol reserves80 fresh validation seeds130100–130179 for the
+new best/final policies, supplied control and frozen1.15 generation270 control.
+Round6's retained supplied policy adds no distinct control. Identical parameter
+sets are deduplicated, and controls win ties. Only a distinct new candidate
+winning validation gets100 reserved games160000–160099, paired with the
+highest validation control whose identity is frozen before test outcomes.
+Retaining a control starts no reserved test. No round7 real evaluation has
+started at this documentation snapshot.
+
+Protocol: `artifacts/doom_reference_round7_fine_search_protocol.json`, SHA256
+`9f9cb63038ea87a0926d770a4ed6ca5aad95693840fefe01c41ab383e867f5e8`.
+Search result: `artifacts/doom_reference_round7_fine_search_result.json`.
+This remains own-controller training on imported public VAE/RNN weights,
+with modern runtime differences; the1092-step goal is unproven.
 
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
 when an updated candidate wins validation. The CPU completion auditor accepts
 `--protocol` to verify the preregistered80-game validation cohort,100-game test
-cohort and frozen1.15 paired control. New fixtures reject duplicate policies,
+cohort and fixed or validation-selected paired control. For round7 it
+independently recomputes the highest validation control and rejects a
+substituted frozen control, even with matching report hashes. Fixtures reject duplicate policies,
 missing or mismatched games, wrong cohorts and substituted controls. An
 isolated supervisor fixture also verified that retaining a control starts no
 reserved test; its synthetic scores are not experiment results.

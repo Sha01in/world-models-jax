@@ -135,6 +135,18 @@ def audit_result(result_path, *, resamples=50000, protocol_path=None):
         raise ValueError("Selected policy provenance differs")
     if freeze["test_seed_range"] != expected_test_range:
         raise ValueError("Unexpected reserved test cohort")
+    highest_control_required = controlled_protocol is not None and (
+        "highest validation control"
+        in controlled_protocol.get("paired_test_control", "")
+    )
+    if highest_control_required:
+        control_indices = [i for i, t in enumerate(tasks) if t["kind"] == "control"]
+        paired_index = max(control_indices, key=lambda i: validation[i]["mean"])
+        if freeze.get("paired_control") != tasks[paired_index]:
+            raise ValueError("Paired control is not the highest validation control")
+        control_controller = tasks[paired_index]["controller"]
+    elif "paired_control" in freeze:
+        raise ValueError("Protocol does not declare validation-selected paired control")
     if controlled_protocol is not None:
         provenance = validation[winner]["protocol"]["controller_provenance"]
         if (
@@ -226,6 +238,7 @@ def audit_result(result_path, *, resamples=50000, protocol_path=None):
         preregistered_protocol=str(protocol_path)
         if protocol_path is not None
         else None,
+        paired_control=freeze.get("paired_control"),
     )
 
 

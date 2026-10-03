@@ -655,8 +655,17 @@ gain+79.83 has95% interval[-22.26,+183.00], so no reliable improvement is
 established. The complete independent CPU audit passed, and both processes
 exited. A controlled temperature1.25 follow-up completed500 generations with
 all other training settings fixed; its best dream checkpoint is generation210.
-Four policies are undergoing80 fresh real validation games each before any
-new reserved test. Dream scores establish no real survival improvement. Source migration
+All four80-game real validations completed: supplied control923.11 ±544.26
+was retained over prior1.15 policy904.83 ±511.93, new1.25 best914.99 ±521.24
+and final914.28 ±514.03. Neither new policy won, so the reserved150000 cohort
+was not consumed. Independent CPU verification checked records, selection,
+fingerprints and absence of reserved games; both evaluation processes exited.
+A preregistered1.15 local search with sigma0.005 and1024 dream validation
+rollouts then completed500 generations, best950.0654 at generation120.
+Independent training-state review and80 fresh real validations remain pending.
+Only a new validation winner may consume the reserved160000 test cohort,
+paired with the highest validation control frozen before testing. Dream scores
+establish no real survival improvement. Source migration
 evidence, complete diagnostic results and the controlled protocol are in
 [the reference audit](vizdoom_reference_audit.md). Historical reports and
 checkpoints remain intact, and the stopped packed run is not resumed.

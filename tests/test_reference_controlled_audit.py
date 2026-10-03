@@ -144,6 +144,46 @@ class TestReferenceControlledAudit(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "controller differs"):
                 audit_result(result_path, protocol_path=protocol_path, resamples=128)
 
+            # A later protocol may pair with the best validation control;
+            # the public actor can win and must be frozen before test outcomes.
+            protocol["paired_test_control"] = (
+                "highest validation control, frozen before tests"
+            )
+            protocol_path.write_text(json.dumps(protocol))
+            prior_validation = report(np.full(80, 900), own=True)
+            prior_validation["protocol"] = copy.deepcopy(validation[0]["protocol"])
+            prior_validation["measured_at"] = validation[0]["measured_at"]
+            for index, row in enumerate(prior_validation["episodes_detail"]):
+                row["seed"] = 130020 + index
+            Path(tasks[0]["report"]).write_text(json.dumps(prior_validation))
+            frozen["validation_scores"]["prior"] = 900.0
+            frozen["validation_report_sha256"][tasks[0]["report"]] = digest(
+                tasks[0]["report"]
+            )
+            frozen["protocol_sha256"] = digest(protocol_path)
+            frozen["paired_control"] = tasks[1]
+            freeze_path.write_text(json.dumps(frozen))
+            wrong_control["protocol"] = copy.deepcopy(validation[1]["protocol"])
+            wrong_control["protocol"]["evaluation_role"] = "test"
+            test_paths[1].write_text(json.dumps(wrong_control))
+            result.update(
+                protocol_sha256=digest(protocol_path),
+                frozen_selection_sha256=digest(freeze_path),
+                control_test_sha256=digest(test_paths[1]),
+            )
+            result_path.write_text(json.dumps(result))
+            analysis = audit_result(
+                result_path, protocol_path=protocol_path, resamples=128
+            )
+            self.assertEqual(analysis["paired_gain95"], [200.0, 200.0])
+            self.assertIsNone(analysis["paired_control"]["controller"])
+            frozen["paired_control"] = tasks[0]
+            freeze_path.write_text(json.dumps(frozen))
+            result["frozen_selection_sha256"] = digest(freeze_path)
+            result_path.write_text(json.dumps(result))
+            with self.assertRaisesRegex(ValueError, "highest validation control"):
+                audit_result(result_path, protocol_path=protocol_path, resamples=128)
+
 
 if __name__ == "__main__":
     unittest.main()
