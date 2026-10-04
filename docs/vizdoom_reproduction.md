@@ -695,11 +695,32 @@ reconstruction checked all complete cohorts, identities, world/source and
 timing. The selected100-game test completed **1026.99 ±597.70**,90 deaths/
 10 timeouts, mean95% **[911.33,1145.64]**. CPU verification checked actual
 records, frozen controller/source/world/provenance and preserved canonical
-weights. The observed mean is below1092; the prior's paired100-game test is
-running, with final completion audit pending. No paired improvement is
-claimed. A contingent validation-winner initialization recipe
+weights. The frozen prior completed1040.31 ±616.27 on the same100 seeds;
+paired selected-minus-prior **−13.32**,95% **[−129.75,+103.78]**, establishes
+no reliable improvement. The protocol-aware paired/source/provenance audit
+and independent completion review passed; session10253 exited0, original
+weights remain intact and no prior GPU work remains queued. The selected
+observed mean stays below1092. A validation-winner initialization recipe
 is registered from training/validation evidence, with CPU compatibility checks
-passed; it is gated on this pair and audit finishing, and starts no extra GPU job.
+passed; its materialized launch gate requires the completed pair/audit, actual
+process absence, unchanged inputs, fresh cohorts and CUDA preflight. It keeps
+the validation-selected initializer fixed regardless of the reserved test scores.
+Readiness passed with no live prior process, then the single CUDA search
+started in session83493 after matrix multiplication/convolution preflight.
+Its settings and exact initializer match the registered recipe; performance
+remains unproven until the separate fresh real evaluation.
+The search completed500 generations with best965.6523 at generation380,
+initial923.2109 and final CMA mean892.9414. Independent CPU review verified
+history, exact initializer/source, best/final parameters, complete optimizer
+and RNG state, and preserved controls. Session83493 exited0 and both training
+processes exited. Fresh-cohort/current-state/exclusive-lock readiness passed
+before serial real validation started in session30040; CUDA preflight passed
+again. The complete80-game cohorts and independent selection audit precede
+any eligible fresh100-game paired test. Real1092 performance is still unproven.
+The unchanged initializer completed80 validations at1031.74 ±617.01,
+mean95%[897.89,1168.05]; actual records, registered source/provenance and
+preserved canonical weights passed independent CPU checks. The supplied
+control and both updated candidates continue under the same serial supervisor.
 Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.

@@ -646,9 +646,17 @@ canonical weights. Artifact:
 `artifacts/doom_reference_round8_selected_test100_cpu_audit.json`; original report
 SHA256 `6cde9a0b7d29cf7980391385131d150642a1fafc1db2e3beb4a44e78e7297875`.
 The observed mean is below1092. Its interval containing1092 does not prove the
-goal. The same supervisor is evaluating the frozen prior on identical seeds;
-evaluator974563 was verified live, and its CUDA preflight passed. The paired
-control and final paired/source/provenance completion audit remain pending.
+goal. The frozen prior completed **1040.31 ±616.27** on the same100 seeds,
+91 deaths/9 timeouts, mean95% **[920.58,1163.10]**. The selected-minus-prior
+paired difference is **−13.32**,95% **[−129.75,+103.78]**,42 wins/43 losses/
+15 ties. This establishes no reliable improvement. The protocol-aware CPU
+auditor reconstructed selection from all validation cohorts and verified both
+complete tests, source/world fingerprints, provenance and freeze timing.
+Current runtime versions, raw controller identity, training-state fingerprints,
+canonical preservation and actual process exit passed a separate completion
+review; session10253 exited0 and no repository GPU work remained queued.
+Artifacts: `artifacts/doom_reference_round8_paired_comparison.json` and
+`artifacts/doom_reference_round8_completion_cpu_audit.json`.
 
 An independent CPU comparison verified matching recorded sources, inputs,
 initial parameters, dream start indices, seeds, precision and runtime versions;
@@ -679,12 +687,73 @@ metadata lookup without changing the registered recipe or decision rule.
 Current preparation:
 `artifacts/doom_reference_round9_validation_initializer_preparation_v2.json`,
 SHA256 `57f01a90231958ea9cfe14e5b3431b76b751733ccb45c7d5a70dc819016446e7`.
-No new GPU job is dispatched or queued. Startup requires the completed current
-pair and independent completion audit, actual process exit, preserved weights,
-fresh cohorts and CUDA preflight. If the current test achieves1092 and full
-goal verification passes, this extra search is unnecessary. Otherwise the
-recipe reserves80 fresh validation130260–130339 and eligible paired100 tests
-180000–180099. Test scores never choose or alter its initializer/settings.
+The current pair finished below1092 and passed independent completion review.
+The materialized protocol is
+`artifacts/doom_reference_round9_validation_initializer_protocol.json`, SHA256
+`e1a25bf4c162a746b46961cd5a393321fddd3a9720e644353e336a5daa0eda7a`.
+Its guarded launcher verifies the actual preparation, completed validation
+winner, input/source fingerprints and fresh cohorts, requires the previous
+completion review and current process absence, and takes an exclusive GPU
+lock before CUDA preflight. Six isolated CPU routing fixtures passed, including
+deduplication if the best checkpoint retains the initializer. A separate CPU
+trainer-state auditor requires the completed search and cannot claim an
+unstarted result. The recipe reserves80 fresh validation130260–130339 and
+eligible paired100 tests180000–180099. Test scores never choose or alter its
+initializer/settings. Readiness then passed with no live previous process.
+The single search started in session83493, supervisor994238 and trainer994308
+verified live. CUDA matrix multiplication and convolution backward checks
+passed. Search arguments match the registered recipe and exact initializer;
+no new real result is yet available.
+
+Independent CPU review verified the actual initializer parameters and metadata,
+frozen inputs/source, unchanged900/100 start pools and numerical runtime. The
+initial1024-dream mean is **923.2109**, versus **901.1104** saved for the same
+policy as round8's final CMA mean, a difference of **22.1006**. Source inspection
+confirms initial validation calls one candidate (1024 engine trajectories),
+while the previous final validation calls two (2048 trajectories). This is a
+recorded difference, not a diagnosed numerical cause; no previous per-rollout
+trace or controlled GPU comparison exists. The active search is preserved,
+and no additional GPU diagnostic is launched. Artifacts:
+`artifacts/doom_reference_round9_initial_match_cpu_audit.json` and
+`artifacts/doom_reference_round9_initial_call_shapes_cpu_review.json`.
+
+The prepared real supervisor now requires an independent CPU reconstruction
+of all complete validation records, candidate identities, strongest control
+and frozen decision before it can dispatch any reserved test. It fingerprints
+the independent auditor in the frozen selection. Six isolated CPU workflow
+fixtures passed this ordering, including control retention and duplicate
+initializer/best identities; these synthetic fixtures are not real results.
+Both independent choice and no-test closure auditors refuse missing actual
+reports. At a measured generation343/500 snapshot, the live search's best
+1024-dream score was958.03125 at generation290; real performance is unproven.
+
+The search subsequently completed500 generations: best **965.65234375** at
+generation380, initial923.2109375 and final CMA mean892.94140625. Independent
+CPU review reconstructed0–500 history and900/100 disjoint start indices,
+checked the exact validation-selected initializer, arguments, inputs/source,
+best/final weights,500-iteration optimizer/final mean, NumPy RNG restoration
+and next JAX key. Canonical and prior controls remain intact. Artifact:
+`artifacts/doom_reference_round9_training_cpu_audit.json`. Session83493 exited0
+and both training processes exited. A separate CPU dispatch check verified
+all current state fingerprints, actual process absence, an exclusive lock and
+fresh130260–130339/180000–180099 cohorts before one serial real supervisor
+started. Artifact: `artifacts/doom_reference_round9_real_dispatch_readiness_cpu.json`.
+CUDA matrix multiplication and convolution backward preflight passed again.
+Real session30040, supervisor1016081 and first evaluator1016151 were verified
+live; first control had completed26/80 games at the measured snapshot. All
+complete real cohorts, independent frozen selection and any eligible paired
+reserved tests remain pending; no1092 performance is claimed.
+
+The unchanged initializer control completed80 games at **1031.74 ±617.01**,
+69 deaths/11 timeouts, fixed-policy bootstrap95% mean **[897.89,1168.05]**
+(50,000 whole-game resamples, seed74180). Independent CPU checks verified
+the actual records, registered cohort, controller/inference provenance,
+source/input fingerprints and preserved canonical weights. Artifact:
+`artifacts/doom_reference_round9_prior_control_validation_cpu_audit.json`.
+This is a validation control, not a reserved100-game result; an interval
+containing1092 does not prove the goal. The same supervisor advanced to supplied
+control, evaluator1019526 verified live at45/80 games. Both new candidates and
+the complete selection remain pending.
 
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
