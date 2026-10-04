@@ -1850,3 +1850,140 @@ by its 64-game training holdout and independent complete capsule audit. The
 baseline remains best at **970.125**. Actual supervisor exit and current audit
 checks are required before the separately prepared fresh validation and any
 eligible reserved pair. The 1092-step objective remains unproven.
+
+
+Round 14 training completed and its supervisor session 49443 exited with code 0
+at 2026-10-04T13:31Z. Independent current CPU replay verified all **1216 training
+games**, eight CMA populations/rankings, selected/final weights, complete
+history and saved optimizer/RNG. The parent, trainer and auditor had exited;
+the GPU lease was available before the separate fresh evaluation dispatch.
+The final generation 8 became best on the repeated 64-game training holdout:
+**1002.0781 ±577.5202** steps (sample SD), with 58 deaths and 6 timeouts,
+versus baseline **970.125 ±537.5760**, 62 deaths and 2 timeouts. Paired change
+was **+31.9531**, bootstrap 95% interval **[−94.2813,+153.4691]**. This interval
+conditions on these fixed checkpoints and the repeated training cohort; it
+excludes training, checkpoint and sequential-selection uncertainty and does
+not establish fresh performance or the 1092-step target. Evidence:
+`artifacts/doom_reference_round14_training_cpu_audit.json`,
+`artifacts/doom_reference_round14_training_exit_review_cpu.json`, and
+`artifacts/doom_reference_round14_final_holdout_comparison_cpu.json`.
+
+The prepared v2 fresh comparison passed actual CPU readiness and CUDA preflight
+and started as supervisor session **62687**, parent **1563012**. Three distinct
+policies require all 80 validation games each on seeds 130660–130739: public,
+prior round 8, and new round 14 generation 8. Best/final raw weights are identical
+and therefore evaluated once. Only a new validation winner, frozen and checked
+by the independent CPU choice audit, may proceed to its reserved 100 games and
+the highest-validation unchanged control on the same seeds 230000–230099.
+No new training is queued. This trains a controller on real survival with an
+imported public world, which differs from the paper's dream-only controller
+training and does not reproduce our own world-model training. Original
+checkpoints and the own-world incumbent score 840.06 ±524.48 are preserved.
+
+
+Round 14 fresh validation completed all **240 games** on seeds 130660–130739.
+The public control scored **972.575 ±509.5249**, the prior round 8 controller
+**979.0875 ±570.5231**, and the new round 14 generation 8 controller
+**921.525 ±521.1782** steps (population SD). New versus prior was
+**−57.5625**, whole-game paired validation bootstrap 95% interval
+**[−190.5878,+73.5631]**. The prior controller was retained after complete
+validation; generation 8's observed training-holdout gain did not transfer to
+this fresh cohort. The interval does not establish population degradation,
+and conditions on the fixed policies while excluding training and sequential
+selection uncertainty. No policy was selected or retrained using test data:
+the reserved range 230000–230099 remains unused because no new policy won.
+
+The actual real supervisor session **62687** exited with code **0** (tool
+`2806f9`). CPU reconstruction rechecked the full result, frozen selection,
+current source/input/runtime/checkpoints/training capsule and all raw records.
+Known training/evaluation/auditor processes and game workers had exited; the
+repository GPU lease was available and no additional GPU job was queued.
+Evidence: `artifacts/doom_reference_round14_real_result_cpu_audit.json`,
+`artifacts/doom_reference_round14_completion_cpu_audit.json`, and
+`artifacts/doom_reference_round14_controller_geometry_cpu.json`.
+The 1092-step goal remains unmet. The next hypothesis is a bounded coherent
+controller-gain search from the retained prior weights, with fixed world and
+inference, fresh training/validation seeds and reserved testing only after an
+independently audited new validation winner. It has not been dispatched or
+shown to improve performance. Original checkpoints and the canonical
+own-world incumbent remain preserved; imported-world direct-real controller
+training remains a protocol departure from the paper.
+
+
+The next CPU prototype projects three log gains onto the retained prior
+controller's z/c/h weight blocks (64/512/512), preserving the zero point's
+raw FP64 weights exactly and the original singleton inference computation.
+Four CPU projection tests passed, including block order, bounds, invalid
+weights and overflow rejection. Recorded prior validation chose wait on only
+**0.2119%** of steps; relative block gains can affect left/right sign as well
+as action magnitude. Their raw action still feeds the fixed RNN, so this is
+not merely an environment threshold adjustment. These are implementation
+facts and a search hypothesis, not evidence of better real survival.
+`artifacts/doom_reference_round15_subspace_design_cpu.json` is a **draft**:
+the resumable projected CMA trainer, full independent optimizer replay and
+fresh comparison gates must be implemented and verified before registration
+and CUDA dispatch. Proposed budget is four generations, population 8, sixteen
+fitness games, 64 training holdouts, three complete 80-game validation cohorts
+and a conditional 100+100 reserved pair (at most 1080 games). Proposed fresh
+seed ranges were checked unused. No GPU work has been dispatched.
+
+
+Round 15 was registered and started on CUDA at 2026-10-04T14:29Z after
+**32 passing CPU tests**, actual initializer/trainer readiness and launcher
+source/input/runtime/process/lease/fresh-seed checks. Protocol:
+`artifacts/doom_reference_round15_subspace_protocol.json`
+(SHA `a91688c85b27913bb7368ce440e988869af74b82b5b02def90330d8dac92af67`).
+It optimizes three bounded log gains (z/c/h blocks) from the retained prior,
+with seed 96, sigma 0.25, four generations, population 8, sixteen common
+fitness games per candidate per generation, and 64 baseline/final training
+holdouts. The world, preprocessing, architecture and singleton inference
+math remain fixed. These combined hyperparameter changes do not isolate a
+cause of improvement. Best and final projected FP64 controller weights,
+log gains and complete three-dimensional optimizer/RNG/history/raw games are
+retained; CPU replay reconstructs the bounded phenotype mean, all populations,
+projection, covariance/adaptation and next RNG before fresh evaluation.
+
+Actual supervisor session **87997**, parent **1599849** and trainer **1599915**
+were verified live; CUDA matrix multiplication and convolution backward
+preflight passed on the RTX 4070 Ti. Initial immutable optimizer snapshot,
+raw zero-gain prior identity, first eight-candidate population and RNG were
+independently reconstructed on CPU. Evidence:
+`artifacts/doom_reference_round15_initial_capsule_cpu_audit.json` and
+`artifacts/doom_reference_round15_training_preparation_cpu.json`.
+The initial 64-game baseline is still running; no complete survival result or
+fresh validation has been claimed. Estimated complete-loop duration is two
+to three hours, dependent on actual game lengths and compilation. Training
+uses up to 640 games, followed by up to 240 fresh validation games and a
+conditional 200 reserved candidate/control games. Validation seeds
+130740–130819 and test seeds 240000–240099 remain separated from training;
+only a distinct new full-validation winner can consume the reserved pair.
+The goal remains unmet and original checkpoints/canonical incumbent remain
+preserved. Historical round 14 sessions are closed and must not be restarted.
+
+
+At 2026-10-04T14:40:01.346943+00:00, round 15 completed its fresh 64-game training baseline:
+**853.8750 ±558.7786** steps (sample SD), with
+62 deaths and 2 timeouts. CPU reconstruction verified every raw
+record, seed/settings/initializer identity, generation-zero best/final projected
+weights and gains, and the pending first3D population and next RNG. Evidence:
+`artifacts/doom_reference_round15_baseline_cpu_audit.json`. The eight-candidate
+first population is running in independently verified live session87997. This
+baseline uses new training seeds and is not fresh validation or the reserved
+100-game result. A lower or higher baseline mean on a different cohort does not
+by itself establish a policy change. The1092-step goal remains unmet.
+
+
+At 2026-10-04T14:55:58.708133+00:00, round 15 completed generation 1 and began generation 2.
+CPU replay verified all **192 completed training games**, reconstructed the
+first population and raw fitness means, three-dimensional covariance/adaptation
+and optimizer mean, best/current projected1088-weight checkpoints and history,
+and the pending second population and next RNG. Current mean feature gains
+(z/c/h) are **0.9137/1.0923/0.9410**.
+These are training updates, not fresh survival validation. Best remains the
+baseline853.875 until the scheduled final64-game holdout at generation4.
+Evidence: `artifacts/doom_reference_round15_g001_training_prefix_cpu_audit.json`.
+Its hashes describe the saved files at that check; optimizer snapshots and
+completed raw cohorts are immutable while checkpoint/pointer/history files
+advance. Existing session87997 and exact parent/trainer commands were verified
+live. Fresh validation and reserved testing remain pending; goal completion
+is unproven.
