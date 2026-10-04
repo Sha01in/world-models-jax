@@ -1568,3 +1568,51 @@ in [the reproduction audit](vizdoom_reproduction.md).
   `doom_reference_round12_completion_cpu_audit.json`. The 1092-step target
   remains unmet. This comparison used an imported public world model;
   the preserved canonical own-world result remains **840.06 ±524.48**.
+* Round13 preregistered one bounded **direct real-survival CMA search** after
+  round12's dream-score gains failed to improve real validation. It starts
+  from the public controller selected solely by complete round12 validation,
+  with the public VAE/RNN, architecture and posterior inference fixed. This
+  changes the paper's dream-only controller-training method. Settings: seed94,
+  sigma0.005, 16 generations, population16, four common fitness seeds per
+  generation and eight persistent game workers. Maximum training is 1,024
+  fitness games plus 80 training-holdout games; fresh policy validation and
+  reserved tests remain separate.
+* Seven CPU tests passed, including mixed-candidate scheduling, independent
+  CMA reconstruction and interruption recovery that exactly reproduced the
+  uninterrupted weights and next population. On the actual frozen models,
+  CPU and GPU checks matched original actor actions, hidden states, RNG keys
+  and dtypes exactly for the tested public/perturbed policies. These short
+  numerical checks are not historical paper equivalence or performance proof.
+  Protocol: `doom_reference_round13_direct_real_protocol.json`, SHA256
+  `60b9198a566ece4d1f373856a8c580e05f7cc2ed6a4cf92577f77077be6bc639`.
+* Fresh source/input/runtime/seed/process/lease readiness and CUDA preflight
+  passed before one supervisor started in **session52524**, PID1323498.
+  Trainer1323841 was independently verified live on
+  2026-10-04T08:10:33Z with **3/16 baseline training-holdout games complete**.
+  Log: `doom_reference_round13_training.log`; status:
+  `doom_reference_round13_training.status`. The supervisor will run the
+  independent CPU training auditor after the trainer exits. No fresh policy
+  validation or reserved test has started. Estimated full-loop time is
+  **4–6 hours**, based on prior measured 80-game evaluations of606–643 seconds;
+  actual costs may differ. Goal completion remains unproven.
+* At2026-10-04T08:12:27Z, all16 public baseline training-holdout games were
+  complete at mean **768.5625**, and the first generation's fitness stage had
+  started. Both actual supervisor and trainer PIDs remained live. This small,
+  fixed training cohort is not the separate fresh-validation result or a
+  reserved test; no updated-policy performance is established yet.
+* Round13's fresh real-comparison workflow is now prepared and frozen in
+  `doom_reference_round13_real_workflow_preparation_cpu.json`, SHA256
+  `371a78c967b9a852d0ca4ddac899cdb87d7147fffa19e391bde0fabb21db82f0`.
+  Thirteen CPU tests passed: complete cohort selection, highest-control pairing,
+  controls-first ties, independent audit rejection blocking tests, raw-policy
+  deduplication/failure exclusions, partial recovery, world drift, nested seed
+  reuse and incomplete paired-test rejection. Synthetic fixtures do not
+  establish real performance. Actual readiness correctly deferred all GPU
+  evaluation while session52524 and its trainer remain live.
+* At2026-10-04T08:38:18Z, **three generations were complete** and generation4
+  had **16/64 fitness games** recorded. Generation3's population mean was
+  **860.96875**, with best four-game fitness **1092.0**. The fixed training
+  holdout's current best remains the public baseline **768.5625**, pending
+  the first new mean checkpoint check after generation4. Neither the four-game
+  fitness score nor the training holdout proves a fresh100-game1092 mean.
+  Both actual supervisor1323498 and trainer1323841 were verified live.

@@ -940,6 +940,53 @@ restarting its closed sessions. Artifacts:
 `artifacts/doom_reference_round12_validation_closure_cpu_audit.json` and
 `artifacts/doom_reference_round12_completion_cpu_audit.json`.
 
+Round13 has started one bounded controller search using **real-game survival
+as fitness**. This changes the paper's dream-only controller training method;
+it retains the imported public world, controller architecture and posterior
+inference. The initializer is the public control selected from complete
+round12 validation. Settings are seed94, sigma0.005,16 generations,
+population16,four common fitness games per candidate and eight persistent
+game workers. Fitness uses seeds500000–500063; the public baseline and means
+at generations4,8,12,16 use sixteen training holdouts510000–510015. These
+training measurements cannot select the final policy for reserved tests.
+
+Fresh validation remains80 posterior games per eligible policy on
+130580–130659, with both controls and distinct best/final candidates, excluding
+prior failed identities. All cohorts must complete before selection; controls
+win ties. Only a new winner, frozen and independently verified from validation,
+gets100 reserved games220000–220099 and100 games for the frozen paired control.
+No validation or test outcome informs this training run. Maximum training is
+1,024 fitness games plus80 training-holdout games; maximum validation is320
+games, with the200-game reserved pair conditional on a new winner.
+
+Seven CPU tests passed, including exact interruption recovery and independent
+CMA reconstruction. Actual-model CPU/GPU actor checks matched the original
+actions, hidden states, keys and dtypes on the tested short inputs. Fresh
+source/input/runtime/seed/process/lease readiness and CUDA preflight passed.
+One supervisor is running in session52524; trainer1323841 was independently
+verified live at2026-10-04T08:10:33Z with3/16 baseline holdout games complete.
+The next gate is completed training and independent CPU reconstruction before
+fresh validation. The1092-step target remains unproven. Estimated full-loop
+duration is4–6 hours, based on prior measured80-game evaluations of606–643
+seconds; new scheduling and compilation costs may differ. Protocol and logs:
+`artifacts/doom_reference_round13_direct_real_protocol.json`,
+`artifacts/doom_reference_round13_training.log` and
+`artifacts/doom_reference_round13_training.status`.
+
+The fresh-validation and conditional paired-test workflow is now prepared;
+13 CPU tests passed, including complete-cohort requirements, independent
+audit rejection preventing testing, ties/no-test closure, recovery, policy
+eligibility, world/seed drift and incomplete paired-test rejection. Preparation:
+`artifacts/doom_reference_round13_real_workflow_preparation_cpu.json`.
+Its actual readiness check deferred GPU evaluation until the existing trainer
+and supervisor exit successfully and the independent training audit passes.
+At2026-10-04T08:38:18Z, three generations were complete and generation4 had
+16/64 fitness games recorded. Generation3's best four-game fitness was1092.0;
+this is a training score, not a fresh100-game result. The fixed training
+holdout still retains the baseline768.5625 until the next checkpoint check.
+Actual supervisor and trainer processes remain live; no fresh validation or
+reserved test has started.
+
 Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.

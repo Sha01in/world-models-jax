@@ -1173,6 +1173,74 @@ preprocessing and RNG differences; it does not reproduce our own world-model
 training or verify the exact checkpoint/runtime behind the paper's result.
 The canonical own-world **840.06 ±524.48** result and checkpoints remain intact.
 
+Round13 is a registered direct real-survival refinement rather than another
+dream-temperature search. The public controller retained by complete round12
+validation is its initializer; the VAE/RNN,1088-weight bias-free tanh[z,c,h]
+architecture, posterior inference, preprocessing and real-game settings stay
+fixed. Real simulator rewards now supply CMA fitness, a method change from
+the paper's dream-only controller training. One search uses seed94, sigma0.005,
+16 generations, population16 and four shared fitness seeds per generation.
+Fitness seeds500000–500063 and training holdouts510000–510015 are separate
+from fresh policy validation130580–130659 and reserved tests220000–220099.
+The baseline and population means at generations4,8,12,16 use the same16
+training holdouts; these repeated holdouts select training checkpoints and
+cannot establish fresh policy performance. Maximum training is1104 games.
+
+`src/doom_real_training.py` passes controller weights as data through the
+original one-game reference actor and keeps eight game workers open across
+populations. Each actual(candidate,seed) pair receives its own reset memory
+and per-seed latent RNG, independent of scheduling. Raw completed pairs,
+pending populations, optimizer/RNG journals, history and best/final policies
+are retained. Seven CPU tests passed, including exact interrupted/uninterrupted
+CMA and next-population agreement and independent full synthetic search
+reconstruction. Actual-model CPU/GPU checks matched actions, hidden states,
+keys and dtypes exactly for public and perturbed policies over the tested
+three-step, eight-game inputs; they do not prove historical paper equivalence
+or all possible trajectories. Artifacts:
+`artifacts/doom_reference_round13_cpu_tests.log`,
+`artifacts/doom_reference_round13_actor_cpu_audit.json` and
+`artifacts/doom_reference_round13_actor_gpu_audit.json`.
+
+Immutable protocol `artifacts/doom_reference_round13_direct_real_protocol.json`
+has SHA256 `60b9198a566ece4d1f373856a8c580e05f7cc2ed6a4cf92577f77077be6bc639`.
+Fresh dispatch readiness and CUDA preflight passed before one supervisor
+started in session52524, PID1323498. Trainer1323841 was independently verified
+live at2026-10-04T08:10:33Z with3/16 baseline holdout games recorded. The
+supervisor runs `scripts/tools/audit_doom_reference_real_training.py` on CPU
+after training exits; it independently reconstructs every candidate population
+from recorded fitness, all holdout choices, final optimizer and next RNG draw.
+All actual training evidence remains pending. Before any real validation,
+prepare and verify its independent selection workflow, with both controls,
+distinct eligible best/final policies, exclusion of the nine prior failed
+identities and complete80-game cohorts. Only a new validation winner may be
+frozen for100 reserved games plus100 paired-control games. The goal is unmet.
+
+The real-comparison workflow subsequently passed **13 CPU tests**, including
+independent choice reconstruction before any reserved job, audit rejection
+preventing testing, highest-control pairing, ties/no-test closure, complete
+cohort requirements, candidate identity/failure exclusions, valid partial
+recovery, world drift, nested recorded seed reuse and an incomplete100-game
+control test. The fixtures use temporary synthetic reports and are not
+performance evidence. The frozen preparation artifact is
+`artifacts/doom_reference_round13_real_workflow_preparation_cpu.json`, SHA256
+`371a78c967b9a852d0ca4ddac899cdb87d7147fffa19e391bde0fabb21db82f0`,
+fingerprinting13 workflow/dependency sources and the passed test log.
+`scripts/tools/run_doom_reference_comparison.py` serially evaluates complete
+fresh cohorts, then invokes `scripts/tools/audit_doom_reference_comparison.py`
+on CPU before any eligible reserved pair. The auditor independently rebuilds
+eligible identities and chooses from raw validation means; final analysis
+requires both complete100-game reports and matching world/runtime/input/source
+evidence. Startup requires actual training supervisor/session exit0 and the
+current completed training audit. Actual check-only readiness deferred dispatch
+while the existing trainer remained live; no real validation has started.
+
+At2026-10-04T08:38:18Z, three CMA generations were complete; generation4 had
+16/64 fitness games recorded. Generation3's population mean was860.96875 and
+its best four-game fitness was1092.0. The training-holdout best was still the
+public baseline768.5625, with its first new checkpoint comparison scheduled
+after generation4. These training measurements do not establish the reserved
+goal. Supervisor1323498 and trainer1323841 were independently verified live.
+
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
 when an updated candidate wins validation. The CPU completion auditor accepts
