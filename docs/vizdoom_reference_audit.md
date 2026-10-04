@@ -863,6 +863,135 @@ This is control validation only and does not establish1092. The same supervisor
 advanced to supplied control, evaluator1072617 verified live; both new policies
 and complete selection remain pending.
 
+The supplied control completed80 validations at **936.08 ±561.21**,
+76 deaths/4 timeouts, fixed-policy mean95% **[814.65,1061.19]**. Independent
+CPU reconstruction verified both controls' registered raw records, actual
+source/input hashes, current package versions, shared world/environment
+protocol and canonical preservation. Prior minus supplied is **+0.86**,
+paired95% **[−126.09,+126.04]**,35 wins/33 losses/12 ties. No reliable
+advantage is established. Artifact:
+`artifacts/doom_reference_round10_controls_validation_cpu_audit.json`.
+Both new policies and the complete validation-only selection remain pending.
+
+The new best-generation1 checkpoint completed80 validations at
+**915.18 ±529.99**,77 deaths/3 timeouts, mean95% **[800.90,1033.56]**.
+Independent CPU reconstruction verified all three complete cohorts, registered
+raw records, actual FP64 controller parameters and generation, source/world,
+current packages and canonical preservation. Best minus prior is **−21.76**,
+paired95% **[−109.93,+69.14]**; minus supplied is **−20.90**, paired95%
+**[−137.96,+94.89]**. Artifact:
+`artifacts/doom_reference_round10_best_validation_cpu_audit.json`. The final
+checkpoint remains running; complete validation selection is not yet frozen.
+
+Round10's final-generation500 checkpoint completed80 validations at
+**929.45 ±573.13**,72 deaths/8 timeouts, mean95% **[807.46,1057.56]**.
+Final minus prior is **−7.49**, paired95% **[−133.54,+116.25]**. Complete
+validation retained the unchanged prior936.94 control; neither new policy won.
+The independent frozen-choice audit passed. Closure reconstructed all320
+actual records, source/world/parameter identities, initializer provenance,
+freeze timing and no reserved190000–190099 consumption. Separate current
+runtime, checkpoint/training-state fingerprints, canonical preservation and
+actual process-exit review passed. Session87088 returned0; both processes are
+absent and no work is queued. Artifacts:
+`artifacts/doom_reference_round10_validation_closure_cpu_audit.json` and
+`artifacts/doom_reference_round10_completion_cpu_audit.json`. The goal remains
+unverified; these descriptive validation intervals do not prove1092.
+
+After round10 closed, a controlled GPU diagnostic held weights, public world,
+seed91 starts, validation key100091 and temperature1.15 fixed. One policy
+with1024 trajectories scored **923.2109375**; two identical copies with2048
+trajectories scored **910.623046875** per copy. Repeats within each call shape
+and both duplicated slots matched exactly, while783/1024 survival outcomes
+differed between shapes (mean difference **−12.587890625**). Independent CPU
+checks verified raw scores/array hashes, controller/source/input fingerprints,
+reconstructed keys and starts, and actual session/process exit. This establishes
+current batch-shape sensitivity. The two-copy result does not reproduce the
+historical two-different-policy901.1103515625 mean, so the full historical
+discrepancy and any particular GPU-kernel mechanism remain unresolved.
+Registered protocol and results:
+`artifacts/doom_reference_batch_shape_protocol.json`,
+`artifacts/doom_reference_batch_shape_diagnostic.json` and
+`artifacts/doom_reference_batch_shape_diagnostic_cpu_audit.json`.
+Session84793 exited0; no training or real games were run.
+
+The new `scripts/tools/train_doom_reference_fixed_validation.py` preserves
+all earlier source snapshots and makes every held-out candidate use the same
+single-candidate engine shape as generation0. Population fitness remains
+batched as before. CPU fixtures execute the actual evaluation function and
+verify baseline/update shapes, exact shared starts and keys, unchanged training
+calls including padding, and unchanged optimizer/key/checkpoint code outside
+the explicit evaluation change. Syntax/Ruff and diff checks pass. Artifact:
+`artifacts/doom_reference_fixed_validation_calls_cpu_audit.json`. Its actual
+GPU call path still needs verification before registering a new search; no
+real-game improvement is inferred from this correction.
+
+The actual corrected evaluation function then passed GPU verification on one,
+two and three identical policy copies. Every call used1024 trajectories; all
+six raw score vectors matched the archived single-policy baseline exactly,
+mean923.2109375. Independent CPU raw-score/source/input/runtime audit passed,
+session48325 returned0 and its process exited. Artifacts:
+`artifacts/doom_reference_fixed_validation_gpu.json` and
+`artifacts/doom_reference_fixed_validation_gpu_cpu_audit.json`. This is a
+comparison verification, not a newly trained policy or real result.
+
+Round11 is a registered same-settings seed92 replay using the corrected
+single-candidate held-out call shape. All training arguments except output
+path stay unchanged. Protocol:
+`artifacts/doom_reference_round11_validation_initializer_protocol.json`,
+SHA256`bd9345a333726a5bf2d8f9ad1049ca43dbf3598220ebc268dc6e58a49234023e`.
+Fresh posterior validation130420–130499 compares both controls and any
+distinct new candidates; identities already failing complete round10 validation
+are excluded. Only an eligible new winner gets paired100-test200000–200099
+after an independent frozen-selection audit. Actual final parameter/population
+history equality against round10 must be checked, not assumed. Readiness
+verified current parent closure/process absence, original weights, fixed-
+validation CPU/GPU evidence, exact recipe/source/inputs and fresh cohorts.
+One search started in session55459, supervisor1123810/trainer1124156 verified
+live after CUDA matrix multiplication/convolution backward preflight.
+
+The live initial-state audit verified exact arguments, initializer, frozen
+inputs/source/runtime metadata and the same seed92 start partition. Initial
+dream mean887.478515625 nevertheless differs by+16.8916015625 from round10's
+870.5869140625. Cause remains unresolved, so a pure selection-correction
+causal attribution is unproven. At83/500, all83 population mean/best statistics
+match the prior run exactly; full optimizer/parameter replay remains unproven.
+Best held-out dream949.2373 at generation50 establishes no real gain. Artifact:
+`artifacts/doom_reference_round11_initial_match_cpu_audit.json`.
+
+The serial real workflow is prepared with the registered fresh cohorts and
+prior-failed-policy exclusion. Nine CPU routing fixtures cover retained
+controls, candidate wins, strongest-control pairing, identity deduplication,
+one/all archived failed identities and rejection blocking reserved tests.
+Synthetic scores are not experimental results. Actual readiness/choice/closure
+guards defer missing completed training/real records. Numerical inference,
+recovery and independent-audit ordering match the previous workflow aside
+from artifact names; syntax/Ruff pass. Artifacts:
+`artifacts/doom_reference_round11_real_workflow_preparation_cpu.json` and
+`artifacts/doom_reference_round11_real_numeric_guard_cpu.json`. The search
+remains the only GPU job; no real evaluation has started.
+
+Round11 subsequently completed500 generations: best fixed-shape dream
+**954.5556640625** at generation470, initial887.478515625 and final mean
+915.376953125. Independent CPU audit verified0–500 history, exact inputs/
+arguments/source, start pools, best/final parameters and flags, optimizer500,
+NumPy state and next JAX key. All500 population mean/best statistics and the
+final raw parameter vector match round10 exactly. The final is the archived
+failed duplicate and is excluded; generation470's best is a distinct eligible
+identity. These checks do not resolve the initial held-out score discrepancy
+or prove any real gain. Artifact:
+`artifacts/doom_reference_round11_training_cpu_audit.json`. Session55459
+returned0 and both training processes exited. Complete fingerprints, actual
+process absence, exclusive lease and fresh real cohorts passed readiness:
+`artifacts/doom_reference_round11_real_dispatch_readiness_cpu.json`.
+
+The sole GPU job is now one serial real supervisor, session15768,
+supervisor1149459 and first evaluator1149804 verified live. It validates the
+unchanged incumbent, public control and new generation470 policy on all80
+fresh posterior-inference games130420–130499, with eight workers and
+unchanged single-game calculation shapes. CUDA preflight passed. Duplicate
+final weights are omitted. Independent complete-validation choice and any
+eligible paired100-test200000–200099 remain pending; no1092 result is claimed.
+
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
 when an updated candidate wins validation. The CPU completion auditor accepts

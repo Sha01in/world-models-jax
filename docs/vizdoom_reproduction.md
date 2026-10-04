@@ -760,6 +760,52 @@ mean95%[818.01,1057.30]; raw records, registered source/input/inference/current
 runtime and canonical preservation passed independent CPU checks. The supplied
 control and both new policies remain under the same serial supervisor; no
 validation winner is frozen yet.
+The supplied control then completed80 validations at936.08 ±561.21.
+Independent CPU checks passed for both controls' records, source/input hashes,
+current packages and canonical preservation. Prior minus supplied+0.86 has
+paired95%[−126.09,+126.04]; neither control has an established advantage.
+The two updated policies and full validation selection remain pending.
+The new best-generation1 checkpoint subsequently completed80 validations at
+915.18 ±529.99; independent raw-record/source/input/current-runtime/controller
+checks passed. Best minus prior−21.76 has paired95%[−109.93,+69.14]. The
+final checkpoint is running; no policy is frozen and1092 remains unverified.
+The final-generation500 checkpoint then completed80 validations at929.45
+±573.13. Final minus prior−7.49 has paired95%[−133.54,+116.25]. Complete
+validation retained the unchanged prior936.94 control. Independent selection/
+no-test closure and current source/runtime/controller/training-state/canonical/
+process checks passed. Session87088 exited0, both processes exited and no work
+is queued. Reserved190000–190099 remain unused;1092 remains unverified.
+A controlled diagnostic then demonstrated current batch-shape sensitivity:
+identical weights/starts/keys scored923.2109 at1024 trajectories and910.6230
+at2048. Within-shape repeats and duplicated slots were exact;783/1024 outcomes
+differed between shapes. Independent CPU raw-score/source/input/RNG checks
+passed and session84793 exited0. This does not fully explain the older901.1104
+result or establish real survival improvement. A new trainer preserves earlier
+snapshots and validates every candidate with the same single-candidate shape
+as the baseline. Actual-function CPU fixtures, syntax/Ruff and diff checks
+pass; its GPU check and new experiment registration remain pending.
+The corrected function subsequently passed GPU verification: all six copied-
+policy score arrays used1024-trajectory calls and matched exactly. Independent
+CPU source/input/raw-score/runtime checks and actual session/process exit passed.
+Round11 is registered and running as a same-settings seed92 replay with fixed
+held-out call shape. Fresh validation130420–130499 and contingent paired
+100-test200000–200099 are reserved; failed round10 policy identities are
+excluded. Session55459, supervisor1123810/trainer1124156 were verified live
+after CUDA preflight. The initial mean887.4785 differs from the prior870.5869
+despite matched recorded inputs/source/runtime; cause remains unresolved. At
+83/500, all83 population statistics match round10, while full replay and real
+improvement remain unproven. Nine CPU real-routing fixtures and guards passed;
+actual readiness defers incomplete training. No real evaluation is dispatched.
+Round11 then completed500 generations: best954.5557 at generation470,
+initial887.4785 and final915.3770. Independent CPU history/input/source/
+checkpoint/optimizer/RNG checks passed. All500 population mean/best statistics
+and final raw weights match round10; the previously failed final is excluded.
+The best is a distinct eligible candidate. Session55459 exited0; both training
+processes exited and actual complete-state/fresh-cohort/lease readiness passed.
+One real supervisor started in session15768, supervisor1149459/evaluator1149804
+verified live after CUDA preflight. It validates both controls and generation470
+on80 fresh posterior games130420–130499. Complete independent selection and
+any eligible paired100-test200000–200099 remain pending;1092 is unverified.
 Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.

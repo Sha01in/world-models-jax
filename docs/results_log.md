@@ -1338,3 +1338,101 @@ in [the reproduction audit](vizdoom_reproduction.md).
   This control validation does not establish1092. The same supervisor advanced
   to supplied control, evaluator1072617 verified live; both new policies and
   complete selection remain pending.
+* Round10's supplied control completed80 validations at **936.08 ±561.21**,
+  76 deaths/4 timeouts, fixed-policy mean95% **[814.65,1061.19]**. Independent
+  CPU checks verified both complete controls, registered records, current
+  packages, matching world/source and canonical preservation. Prior minus
+  supplied is **+0.86**, paired95% **[−126.09,+126.04]**,35 wins/33 losses/
+  12 ties. Neither control has an established advantage. Artifact:
+  `doom_reference_round10_controls_validation_cpu_audit.json`. Both new
+  candidates and complete validation selection remain pending.
+* Round10's new best-generation1 checkpoint completed80 validations at
+  **915.18 ±529.99**,77 deaths/3 timeouts, mean95% **[800.90,1033.56]**.
+  Independent CPU raw-record/source/input/current-runtime/controller checks
+  passed. Best minus prior is **−21.76**, paired95% **[−109.93,+69.14]**;
+  minus supplied is **−20.90**, paired95% **[−137.96,+94.89]**. The final
+  checkpoint is still running; no winner is frozen. Artifact:
+  `doom_reference_round10_best_validation_cpu_audit.json`.
+* Round10's final-generation500 checkpoint completed80 validations at
+  **929.45 ±573.13**,72 deaths/8 timeouts, mean95% **[807.46,1057.56]**.
+  Final minus prior is **−7.49**, paired95% **[−133.54,+116.25]**. All four
+  complete cohorts retained the unchanged prior936.94 control. Independent
+  selection/no-test closure and current runtime/source/controller/training-state/
+  canonical/process audits passed. Session87088 exited0; both processes exited,
+  no work is queued and190000–190099 remain unused. Artifacts:
+  `doom_reference_round10_validation_closure_cpu_audit.json` and
+  `doom_reference_round10_completion_cpu_audit.json`. Neither seed91 nor seed92
+  refinement beat its complete validation control;1092 remains unverified.
+* A preregistered controlled GPU diagnostic compared identical initializer
+  weights, seed91 starts, key100091 and temperature1.15 at1024 versus2048
+  dream trajectories. Means were **923.2109375** and **910.623046875**,
+  a difference of **−12.587890625**, with783/1024 different survival outcomes.
+  Repeats within each shape and both duplicated slots matched exactly.
+  Independent CPU raw-score/controller/source/input/RNG checks passed; session
+  84793 exited0 and its process exited. This demonstrates current batch-shape
+  sensitivity, without diagnosing a specific kernel or fully explaining the
+  historical901.1103515625 result. No training or real games were run.
+  Artifacts: `doom_reference_batch_shape_protocol.json`,
+  `doom_reference_batch_shape_diagnostic.json` and its CPU audit.
+* Added `scripts/tools/train_doom_reference_fixed_validation.py`, preserving
+  every earlier frozen trainer. Every held-out candidate now uses the same
+  single-candidate call shape as the baseline. CPU fixtures execute the actual
+  evaluation function, verifying fixed shapes and shared starts/keys across
+  baseline/updates, unchanged training calls including padding, and unchanged
+  optimizer/key/checkpoint code outside the explicit evaluation change.
+  Syntax/Ruff and diff checks pass. Artifact:
+  `doom_reference_fixed_validation_calls_cpu_audit.json`. A GPU check of this
+  new call path and a preregistered new experiment remain pending; no new
+  training or real-performance result is claimed.
+* The actual fixed-validation function passed a registered GPU verification:
+  one, two and three copied policies all used1024-trajectory calls and all six
+  raw score vectors matched the earlier single-policy baseline exactly,
+  mean923.2109375. Independent CPU source/input/raw-score/runtime checks
+  passed; session48325 exited0 and the process exited. Artifacts:
+  `doom_reference_fixed_validation_gpu.json` and its CPU audit. No training
+  or real games were run by this verification.
+* Registered round11 as a seed92 replay with the same initializer/world/CMA
+  arguments, changing only the held-out validation call shape (and output
+  path). Protocol SHA256
+  `bd9345a333726a5bf2d8f9ad1049ca43dbf3598220ebc268dc6e58a49234023e`.
+  Fresh80-game validation130420–130499 and contingent paired100-test
+  200000–200099 are reserved. Candidates identical to failed round10 best/
+  final policies are excluded. Source/input/initializer/parent-closure/fixed-
+  validation checks and fresh-cohort readiness passed before one CUDA search
+  started, session55459, supervisor1123810 and trainer1124156 verified live.
+  CUDA matrix multiplication/convolution backward preflight passed again.
+* The independent live initial-state audit verified exact arguments, initializer,
+  frozen inputs/source/runtime metadata and matching seed92 start pools. The
+  initial dream mean887.478515625 differs by+16.8916015625 from the recorded
+  round10 baseline870.5869140625; cause remains unresolved. Do not attribute
+  later differences solely to the intended selection correction. At83/500,
+  all83 population mean/best statistics match round10 exactly; full optimizer/
+  weight replay remains unproven. Best fixed-shape held-out dream949.2373 at
+  generation50 is not real survival evidence. Artifact:
+  `doom_reference_round11_initial_match_cpu_audit.json`.
+* Round11's real workflow is prepared. Nine isolated CPU fixtures verify
+  retained controls, strongest-control pairing, identity deduplication, exclusion
+  of one/all prior failed candidates and independent audit rejection blocking
+  reserved tests. Actual readiness/choice/closure auditors defer missing
+  completed training/real records. The numerical inference, recovery and
+  audit-order functions match round10 aside from artifact names. Syntax/Ruff
+  pass. Artifacts: `doom_reference_round11_real_workflow_preparation_cpu.json`
+  and `doom_reference_round11_real_numeric_guard_cpu.json`. The sole current
+  GPU job remains the search; no real evaluation has been dispatched.
+* Round11 completed500 generations. Best fixed-shape dream **954.5556640625**
+  was generation470; initial887.478515625 and final mean915.376953125.
+  Independent CPU audit passed for full history, arguments/inputs/source,
+  start pools, best/final flags/weights, optimizer500 and RNG state. All500
+  population mean/best statistics and final raw parameters match round10
+  exactly; the final policy is excluded as the previously failed duplicate.
+  The new best raw identity is distinct. Session55459 exited0, both training
+  processes exited, and completed-state/fresh-cohort/exclusive-lease readiness
+  passed. Artifact: `doom_reference_round11_training_cpu_audit.json`.
+* One serial real supervisor started in session15768, supervisor1149459 and
+  evaluator1149804 verified live with the exact80-game130420–130499,
+  posterior/eight-worker unchanged-incumbent command. CUDA preflight passed.
+  Three policies will be validated: unchanged incumbent, public control and
+  new generation470; the archived duplicate final is omitted. Independent
+  complete-validation selection must precede any eligible paired100-test
+  200000–200099. Artifact: `doom_reference_round11_real_dispatch_readiness_cpu.json`.
+  No real1092 result is yet established.
