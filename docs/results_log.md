@@ -1256,3 +1256,85 @@ in [the reproduction audit](vizdoom_reproduction.md).
   control cannot establish1092; complete candidate selection remains pending.
   The same supervisor advanced to supplied control, evaluator1019526 verified
   live at45/80 games. Artifact: `doom_reference_round9_prior_control_validation_cpu_audit.json`.
+* Round9's supplied control completed80 games at **982.68 ±520.17**,
+  77 deaths/3 timeouts, fixed-policy mean95% **[870.09,1096.81]**. Independent
+  CPU comparison verified both complete controls, registered raw records,
+  current runtime, matching world/source and canonical preservation. Prior
+  minus supplied is **+49.06**, paired95% **[−73.88,+172.28]**,33 wins/
+  34 losses/13 ties; no reliable gain is established. Artifact:
+  `doom_reference_round9_controls_validation_cpu_audit.json`. Both updated
+  candidates and complete validation selection remain pending.
+* Round9's new best-generation380 checkpoint completed80 validations at
+  **961.74 ±501.45**,78 deaths/2 timeouts, mean95% **[853.01,1072.85]**.
+  Independent raw-record/controller/world/source checks passed. New best minus
+  prior is **−70.00**, paired95% **[−207.94,+67.68]**; minus supplied is
+  **−20.94**, paired95% **[−138.49,+98.60]**. The final-generation500 cohort
+  remains running; selection is not frozen. Artifact:
+  `doom_reference_round9_best_validation_cpu_audit.json`.
+* Round9's final-generation500 checkpoint completed80 validations at
+  **940.85 ±535.48**,77 deaths/3 timeouts, mean95% **[824.32,1058.61]**.
+  Minus the prior control is **−90.89**, paired95% **[−217.69,+33.01]**.
+  All four complete cohorts selected the unchanged prior1031.74 control;
+  neither new candidate won. Independent choice and no-test closure audits
+  verified records, identities, source/world and that180000–180099 remain
+  unused. Current runtime/training-state/canonical/process review passed;
+  session30040 exited0, both processes exited and no prior GPU work remains.
+  Artifacts: `doom_reference_round9_frozen_selection_cpu_audit.json`,
+  `doom_reference_round9_validation_closure_cpu_audit.json` and
+  `doom_reference_round9_completion_cpu_audit.json`. The1092 goal stays unproven.
+* Registered a seed92 repeat from the same initializer and settings as round9,
+  changing only training seed91→92 and output path. This changes CMA samples,
+  dream streams and the900/100 start-pool partition together; it does not
+  isolate CMA randomness. Protocol SHA256
+  `4d75e8c53d9ee6fdc5203ca5cd2b4796a0035beec3bf3753fd160c1aac07e2b7`.
+  CPU verification passed for exact arguments/initializer, unchanged numerical
+  trainer, fresh80-game validation130340–130419 and contingent paired100-test
+  190000–190099, disjoint start pools, prior closure and exclusive GPU lock.
+  Training-state auditor correctly defers an unstarted result; syntax/Ruff
+  pass. Artifact: `doom_reference_round10_search_readiness_cpu_audit.json`.
+* The single round10 search started in session49055, supervisor1050296 and
+  trainer1050365 verified live with the exact registered arguments. CUDA
+  matrix multiplication and convolution backward preflight passed. Keep all
+  original best/final checkpoints and optimizer/RNG states; no real result is
+  yet available. Only a distinct updated controller winning all fresh real
+  validation games can advance to reserved testing.
+* Round10's live initial-state CPU audit at61/500 generations verified exact
+  seed92 arguments, unchanged raw initializer, frozen inputs/source/runtime,
+  independently reconstructed900/100 pools and canonical preservation.
+  Initial1024-dream mean **870.5869140625** uses different start/noise streams
+  from seed91 and is not an estimate of training improvement. Measured GPU
+  utilization95% with1905MiB resident at a training snapshot. Artifact:
+  `doom_reference_round10_initial_match_cpu_audit.json`; real results are pending.
+* Prepared round10's serial real supervisor, independent choice/retention
+  auditors and completed-training readiness checker. Seven isolated CPU
+  fixtures pass control retention, candidate wins, strongest-control pairing,
+  identity deduplication, audit-before-test ordering and rejection blocking
+  reserved tests. Actual readiness/choice/closure checks defer missing real
+  results; no evaluation GPU job starts. The evaluator command, numerical
+  inference and recovery code exactly match the prior verified workflow.
+  Syntax/Ruff pass. Artifact:
+  `doom_reference_round10_real_workflow_preparation_cpu.json`. The original
+  search remains live at a measured239/500 snapshot, best1024-dream954.8711
+  at generation1; this is not a real1092 result.
+* Round10 completed500 generations: best1024-dream **954.87109375** at
+  generation1, initial870.5869140625 and final CMA mean953.3369140625.
+  Independent CPU audit passed for0–500 history, unchanged initializer/source,
+  seed92 start pools, best/final weights, optimizer count500/final mean, NumPy
+  state and next JAX key. Session49055 exited0 and both training processes
+  exited. Artifact: `doom_reference_round10_training_cpu_audit.json`.
+* Current-state/fresh-cohort/exclusive-lock readiness passed before one serial
+  real supervisor started, session87088, supervisor1068933 and first evaluator
+  1069003 verified live. CUDA matrix multiplication/convolution backward
+  preflight passed. First stage is the unchanged prior's80 posterior-validation
+  games130340–130419. Complete validation and independent frozen selection
+  precede any eligible paired100-test190000–190099; real1092 is unproven.
+  Artifact: `doom_reference_round10_real_dispatch_readiness_cpu.json`.
+* Round10's unchanged prior completed80 validation games at **936.94 ±547.92**,
+  76 deaths/4 timeouts, fixed-policy bootstrap95% mean **[818.01,1057.30]**
+  (50,000 whole-game resamples, seed74180). Actual registered records,
+  controller/inference/source/input/current-runtime provenance and canonical
+  preservation passed independent CPU checks. Artifact:
+  `doom_reference_round10_prior_control_validation_cpu_audit.json`.
+  This control validation does not establish1092. The same supervisor advanced
+  to supplied control, evaluator1072617 verified live; both new policies and
+  complete selection remain pending.

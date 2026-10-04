@@ -720,7 +720,46 @@ any eligible fresh100-game paired test. Real1092 performance is still unproven.
 The unchanged initializer completed80 validations at1031.74 ±617.01,
 mean95%[897.89,1168.05]; actual records, registered source/provenance and
 preserved canonical weights passed independent CPU checks. The supplied
-control and both updated candidates continue under the same serial supervisor.
+control completed80 games at982.68 ±520.17; independent CPU comparison of
+both controls found prior-minus-supplied+49.06, paired95%[−73.88,+172.28],
+with no reliable gain established. Both updated candidates and the complete
+validation-only selection remain pending under the same serial supervisor.
+The new best-generation380 checkpoint subsequently completed80 validations
+at961.74 ±501.45. Independent CPU checks passed; minus prior−70.00 has
+paired95%[−207.94,+67.68]. The final-generation500 cohort is running, and
+complete selection and any eligible reserved tests remain pending.
+The final checkpoint subsequently completed80 games at940.85 ±535.48.
+All four complete cohorts retained the prior1031.74 control; neither new
+candidate won. Independent selection/no-test closure and current runtime,
+controller/source/training-state/canonical/process audits passed. Session30040
+exited0; reserved180000–180099 were not consumed, and1092 remains unproven.
+Round10 is a fixed-settings seed92 repeat from the same initializer; seed91→92
+changes CMA samples, dream streams and start-pool partition together. Fresh
+validation130340–130419 and contingent paired100-test190000–190099 are
+registered before outcomes. Exact arguments/initializer/source, disjoint
+start pools, prior closure, fresh cohorts and exclusive lock passed CPU checks.
+One search started in session49055 after CUDA matrix multiplication/convolution
+backward preflight, preserving best/final/optimizer/RNG state. A distinct new
+validation winner is required before reserved testing; no real result exists yet.
+The serial real supervisor and independent auditors are prepared; seven CPU
+fixtures pass selection, pairing, deduplication and audit-rejection gates.
+Actual readiness defers incomplete training/audit, numerical inference is
+unchanged and no real evaluation is launched. Existing search progress239/500
+at the measured snapshot does not establish the1092 target.
+Round10 then completed500 generations: best954.8711 at generation1 and
+final CMA mean953.3369. Independent CPU history/initializer/source/start-pool/
+checkpoint/optimizer/RNG checks passed. Session49055 exited0 and both training
+processes exited. Actual complete-state/fresh-cohort/exclusive-lock readiness
+passed before one serial real supervisor started in session87088. CUDA
+matrix multiplication/convolution backward preflight passed again. First
+stage is80 fresh unchanged-prior posterior validations130340–130419; the
+complete four cohorts and independent frozen choice precede eligible paired
+100-test190000–190099. No real1092 result is yet established.
+The unchanged prior completed80 validations at936.94 ±547.92,
+mean95%[818.01,1057.30]; raw records, registered source/input/inference/current
+runtime and canonical preservation passed independent CPU checks. The supplied
+control and both new policies remain under the same serial supervisor; no
+validation winner is frozen yet.
 Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.

@@ -755,6 +755,114 @@ containing1092 does not prove the goal. The same supervisor advanced to supplied
 control, evaluator1019526 verified live at45/80 games. Both new candidates and
 the complete selection remain pending.
 
+The supplied control subsequently completed80 games at **982.68 ±520.17**,
+77 deaths/3 timeouts, fixed-policy mean95% **[870.09,1096.81]**. Independent
+CPU reconstruction verified both controls' complete registered records,
+current package versions, matching world/environment/source protocol and
+canonical preservation. Prior-minus-supplied is **+49.06**, paired95%
+**[−73.88,+172.28]**,33 wins/34 losses/13 ties. This does not establish a
+reliable gain or complete candidate selection. Artifact:
+`artifacts/doom_reference_round9_controls_validation_cpu_audit.json`.
+
+The new best-generation380 checkpoint completed80 validations at
+**961.74 ±501.45**,78 deaths/2 timeouts, mean95% **[853.01,1072.85]**.
+Independent CPU reconstruction verified all three complete cohorts, actual
+controller parameters, source/world fingerprints and canonical preservation.
+New-best-minus-prior is **−70.00**, paired95% **[−207.94,+67.68]**; minus
+supplied is **−20.94**, paired95% **[−138.49,+98.60]**. Artifact:
+`artifacts/doom_reference_round9_best_validation_cpu_audit.json`. The same
+supervisor is evaluating the final-generation500 checkpoint. Complete
+validation selection and any eligible reserved tests remain pending.
+
+Round9's final-generation500 checkpoint completed80 games at
+**940.85 ±535.48**,77 deaths/3 timeouts, mean95% **[824.32,1058.61]**.
+Its difference from the prior control is **−90.89**, paired95%
+**[−217.69,+33.01]**. All four complete validation cohorts retained the
+unchanged prior control1031.74. The synchronous independent selection audit
+passed before the supervisor closed without a reserved test. Independent
+closure reconstructed all320 real records, world/source/parameter identities,
+prior initialization and freeze timing, and verified no180000–180099 games
+were consumed. Separate current runtime, raw controller, saved training state,
+canonical preservation and actual process-exit review passed. Session30040
+returned0 and the supervisor and evaluator are absent. Artifacts:
+`artifacts/doom_reference_round9_validation_closure_cpu_audit.json` and
+`artifacts/doom_reference_round9_completion_cpu_audit.json`. This loop provides
+no new1092 result; none of its validation intervals proves that target.
+
+Round10 repeats the same initialization and search settings with training seed
+**92**, changing only the seed and output path. This random-seed change includes
+CMA samples, dream streams and the900/100 start-pool permutation together.
+It is a stochastic repeat, not an isolated CMA-only intervention. The
+initializer remains the round8 final-generation500 policy retained by all
+complete round9 validation cohorts. The imported world, temperature1.15,
+sigma0.005,500 generations,population64,fitness64,candidate batch64 and1024
+held-out dream evaluations every10 stay fixed. Registered protocol:
+`artifacts/doom_reference_round10_validation_initializer_protocol.json`, SHA256
+`4d75e8c53d9ee6fdc5203ca5cd2b4796a0035beec3bf3753fd160c1aac07e2b7`.
+CPU review verified the actual unchanged initializer/numerical trainer, exact
+argument differences, prior closure/current process absence, exclusive lock,
+disjoint new start pools and fresh real cohorts. Readiness artifact:
+`artifacts/doom_reference_round10_search_readiness_cpu_audit.json`. The
+independent training-state auditor defers missing results; syntax and Ruff pass.
+One search started in session49055, supervisor1050296 and trainer1050365
+verified live; CUDA matrix multiplication and convolution backward preflight
+passed. It preserves best/final weights and complete optimizer/RNG state.
+Fresh real validation130340–130419 must compare both controls and new
+best/final policies with posterior inference. Freeze a distinct updated winner
+and the highest validation control before any paired100-test190000–190099.
+Retaining a control consumes no reserved test. No real gain is claimed from
+this newly started search, and imported world weights remain explicit.
+
+At a measured61/500 generation snapshot, the live initial-state CPU audit
+verified exact seed92 arguments, unchanged initializer parameter hash,
+frozen inputs/source/runtime, reconstructed900/100 pools and canonical
+preservation. Initial1024-dream mean **870.5869140625** comes from the newly
+registered seed/start/noise streams and does not measure training improvement
+against seed91. GPU utilization measured95% with1905MiB resident at a training
+snapshot. Artifact: `artifacts/doom_reference_round10_initial_match_cpu_audit.json`.
+Both actual search processes remained live; complete training and real-game
+evaluation are pending.
+
+Round10's real supervisor and independent choice/retention auditors are now
+prepared with the registered130340–130419 validation and190000–190099 test
+cohorts. Seven isolated CPU fixtures verify retained controls consume no tests,
+eligible candidate wins freeze the strongest control, identical vectors are
+deduplicated, the independent audit runs before tests, and its rejection
+blocks every reserved evaluation. Synthetic scores are not experiment results.
+Actual readiness/choice/closure checks correctly defer missing completed
+training and real reports. The real evaluator command, inference settings and
+recovery code are unchanged. Syntax and Ruff pass. Artifact:
+`artifacts/doom_reference_round10_real_workflow_preparation_cpu.json`. No real
+GPU job is dispatched; the existing search remains live at a measured239/500
+snapshot with best1024-dream954.8711 at generation1. Real performance remains
+unproven.
+
+Round10 subsequently completed500 generations: best1024-dream **954.87109375**
+at generation1, initial870.5869140625 and final CMA mean953.3369140625.
+Independent CPU audit reconstructed all0–500 history and seed92 start pools,
+verified exact initializer/arguments/input/source, best/final policy weights,
+500-iteration optimizer/final mean, NumPy state and next JAX key. Canonical
+and prior policies remain intact. Artifact:
+`artifacts/doom_reference_round10_training_cpu_audit.json`. Session49055 exited0
+and both training processes exited. Current complete-state fingerprints,
+process absence, exclusive lock and fresh cohorts passed CPU readiness:
+`artifacts/doom_reference_round10_real_dispatch_readiness_cpu.json`.
+One serial real supervisor then started in session87088; supervisor1068933
+and evaluator1069003 were verified live with the exact unchanged-prior,
+80-game130340–130419/posterior/eight-worker arguments. CUDA matrix
+multiplication and convolution backward preflight passed. Full validation,
+independent choice and any eligible reserved paired test remain pending.
+
+The unchanged prior completed80 validation games at **936.94 ±547.92**,
+76 deaths/4 timeouts, fixed-policy bootstrap95% mean **[818.01,1057.30]**
+(50,000 whole-game resamples, seed74180). Independent CPU checks verified
+complete registered records, controller/inference/source/input provenance,
+current package versions and canonical preservation. Artifact:
+`artifacts/doom_reference_round10_prior_control_validation_cpu_audit.json`.
+This is control validation only and does not establish1092. The same supervisor
+advanced to supplied control, evaluator1072617 verified live; both new policies
+and complete selection remain pending.
+
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
 when an updated candidate wins validation. The CPU completion auditor accepts
