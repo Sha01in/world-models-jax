@@ -1739,3 +1739,114 @@ and the GPU lease was available at the precommit check. This experiment trained
 the controller directly on real simulator survival using an imported public
 VAE/RNN, which differs from the paper's dream-only controller training and does
 not establish reproduction of our own world-model training.
+
+Round 14 was registered and started on CUDA at 2026-10-04T11:20Z. It warm-starts
+the prior round 8 controller selected from complete round 13 validation, uses
+eight fitness games per candidate per generation and 64 repeated training
+holdouts, and is bounded to eight CMA generations with population 16 and
+sigma 0.005. The imported VAE/RNN, architecture and inference protocol stay
+fixed. This combined refinement does not isolate which change affects results.
+All 21 CPU workflow/replay/recovery tests and the actual trainer readiness check
+passed; CUDA preflight passed on the RTX 4070 Ti. Current baseline holdout
+completion was 15/64 at 2026-10-04T11:22:29.934276+00:00. This is training progress,
+not fresh policy performance. Supervisor session 49443 and its trainer were
+independently verified live.
+
+Fresh fitness seeds 520000–520063, training holdouts 530000–530063, validation
+seeds 130660–130739 and reserved tests 230000–230099 were checked unused and
+separated before dispatch. All eligible policies require complete 80-game
+validation; only a distinct new validation winner proceeds to the complete
+100-game reserved comparison with the unchanged control on the same seeds.
+The planned four-hour window is an estimate. Protocol and resume evidence:
+`artifacts/doom_reference_round14_direct_real_protocol.json`,
+`artifacts/doom_reference_round14_training_preparation_cpu.json`, and
+`artifacts/task_state.json`. The paper target remains unmet.
+
+At 2026-10-04T11:29:41.782983+00:00, round 14 completed its 64-game training baseline at
+**970.125 ±537.5760** steps (sample standard deviation), with
+62 deaths and 2 timeouts. CPU reconstruction verified all raw records,
+registered seeds/settings and initializer weights, saved generation-zero best
+and final weights, and the first 16-candidate CMA population and RNG state.
+Evidence: `artifacts/doom_reference_round14_baseline_cpu_audit.json`.
+Generation 1 is evaluating its 128 candidate/game pairs, with the existing
+supervisor session 49443 and trainer independently verified live. This is
+a repeated training holdout, not fresh validation or the reserved 100-game
+result. The 1092-step target remains unmet.
+
+At 2026-10-04T11:41:44.408753+00:00, round 14 completed generation 1 and started generation 2.
+The independent CPU prefix audit verified all **192 completed training-game
+records** (64 baseline holdouts plus 128 fitness pairs), reconstructed the
+first population and fitness means, saved optimizer mean/best/final weights
+and history, and the next pending population and RNG. Evidence:
+`artifacts/doom_reference_round14_g001_training_prefix_cpu_audit.json`.
+Its hashes describe the saved files at that check; mutable checkpoint/pointer
+files will advance as training continues, while the audited optimizer snapshot
+and completed raw cohorts are preserved. The best training holdout remains
+the generation-zero baseline **970.125**; the next holdout evaluation is at
+generation 4. Existing supervisor session 49443 and its exact trainer command
+were verified live. No fresh validation or reserved test has started, and
+these training fitness scores do not establish the 1092-step target.
+
+At 2026-10-04T11:53:19.751702+00:00, round 14 completed generation 2. CPU prefix replay
+verified all **320 completed training-game records**, both fitness populations
+and rankings, saved mean/best/final weights and history, and the pending third
+population and RNG. Evidence:
+`artifacts/doom_reference_round14_g002_training_prefix_cpu_audit.json`.
+Generation 3 is running in the same verified live session 49443. The best
+training holdout remains generation zero at **970.125**; its next comparison
+is at generation 4. Fresh validation and reserved testing remain pending,
+so the 1092-step objective is still unproven.
+
+At 2026-10-04T12:10:22.267991+00:00, round 14 completed generation 3. CPU replay verified
+all **448 completed training-game records**, three populations and rankings,
+saved mean/best/final weights and history, and pending fourth population/RNG.
+Evidence: `artifacts/doom_reference_round14_g003_training_prefix_cpu_audit.json`.
+Generation 4 is running in the same verified live session 49443; after its
+fitness population it will compare the mean controller on all 64 training
+holdouts against the generation-zero baseline **970.125**. Fresh validation
+and reserved testing remain pending. These training records do not establish
+the 1092-step objective.
+
+At 2026-10-04T12:32:05.070744+00:00, round 14 generation 4 scored **899.8281 ±490.4217**
+on all 64 repeated training holdouts (sample standard deviation), below
+baseline **970.125 ±537.5760**. It had 63 deaths and 1 timeout versus
+baseline 62 deaths and 2 timeouts. The paired change was **−70.2969** steps,
+with whole-game bootstrap 95% interval **[−174.0785,+27.8910]**. This
+conditions on the fixed checkpoints and repeated training cohort; it excludes
+training/checkpoint/sequential selection uncertainty and is not fresh validation.
+The baseline remains best. CPU replay verified all **640 completed training
+records**, four populations/rankings, selected best and current mean weights,
+history, and the pending fifth population and RNG. Evidence:
+`artifacts/doom_reference_round14_g004_training_prefix_cpu_audit.json` and
+`artifacts/doom_reference_round14_g004_holdout_comparison_cpu.json`.
+Generation 5 is running in verified live session 49443. The registered search
+continues to generation 8 before fresh validation; reserved testing has not
+started, and the 1092-step target remains unmet.
+
+At 2026-10-04T12:43:34.778264+00:00, round 14 completed generation 5. CPU prefix replay
+verified **768 completed training-game records**, five populations/rankings,
+saved mean/best/final weights and history, and pending sixth population/RNG.
+Evidence: `artifacts/doom_reference_round14_g005_training_prefix_cpu_audit.json`.
+Generation 6 is running in verified live session 49443. The baseline remains
+best at **970.125** on repeated training holdouts; the next holdout comparison
+is at generation 8. Fresh validation and reserved testing remain pending,
+so the 1092-step objective is unproven.
+
+At 2026-10-04T12:56:29.454931+00:00, round 14 completed generation 6. CPU prefix replay
+verified **896 completed training-game records**, six populations/rankings,
+saved mean/best/final weights and history, and pending seventh population/RNG.
+Evidence: `artifacts/doom_reference_round14_g006_training_prefix_cpu_audit.json`.
+Generation 7 is running in verified live session 49443. The baseline remains
+best at **970.125** on repeated training holdouts; the next comparison is at
+generation 8. Fresh validation and reserved testing remain pending. The
+1092-step objective is unproven.
+
+At 2026-10-04T13:13:29.223055+00:00, round 14 completed generation 7. CPU prefix replay
+verified **1024 completed training-game records**, seven populations/rankings,
+saved mean/best/final weights and history, and pending eighth population/RNG.
+Evidence: `artifacts/doom_reference_round14_g007_training_prefix_cpu_audit.json`.
+The final generation 8 is running in verified live session 49443, followed
+by its 64-game training holdout and independent complete capsule audit. The
+baseline remains best at **970.125**. Actual supervisor exit and current audit
+checks are required before the separately prepared fresh validation and any
+eligible reserved pair. The 1092-step objective remains unproven.
