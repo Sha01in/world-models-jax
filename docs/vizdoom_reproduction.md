@@ -662,9 +662,26 @@ was not consumed. Independent CPU verification checked records, selection,
 fingerprints and absence of reserved games; both evaluation processes exited.
 A preregistered1.15 local search with sigma0.005 and1024 dream validation
 rollouts then completed500 generations, best950.0654 at generation120.
-Independent training-state review and80 fresh real validations remain pending.
-Only a new validation winner may consume the reserved160000 test cohort,
-paired with the highest validation control frozen before testing. Dream scores
+Independent CPU training-state review passed, including500-generation history,
+optimizer/final weights/RNG and unchanged inputs/source/incumbent. The serial
+four-policy80-game real validation completed: prior920.03, supplied944.91,
+new best947.80 and final875.79. Generation120 narrowly won; its paired
+validation gain over supplied is+2.89 with95% interval[-113.21,+118.34], so
+no reliable gain is established. The winner and highest validation control,
+supplied posterior, were frozen before testing and independently CPU-audited.
+The selected100-game160000 test completed945.73 ±570.08, mean95% interval
+[836.80,1057.28], below1092. Its records, frozen policy and timing passed CPU
+verification; supplied pairing completed922.62 ±562.71 on the same seeds.
+Paired gain+23.11 has95% interval[-64.56,+109.06], establishing no reliable
+gain. The complete protocol-aware CPU audit passed; both evaluation processes
+exited and canonical checkpoints remain intact. A
+64-versus16 fitness-rollout comparison was preregistered from
+training/validation evidence; its readiness check passed after this pair closed.
+The single CUDA search is running at230/500 generations, with no round8 real
+evaluation yet. Its initial1024-dream mean differs by0.2979 despite matching
+recorded inputs, source, initial parameters and runtime metadata; the cause
+is unresolved and is documented in the reference audit.
+Actual1092 performance remains unproven. Dream scores
 establish no real survival improvement. Source migration
 evidence, complete diagnostic results and the controlled protocol are in
 [the reference audit](vizdoom_reference_audit.md). Historical reports and

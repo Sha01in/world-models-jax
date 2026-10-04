@@ -1052,3 +1052,82 @@ in [the reproduction audit](vizdoom_reproduction.md).
   fixed-control compatibility and rejection of an incorrect validation-selected
   paired control. Ruff lint/format and `git diff --check` passed. These checks
   started no GPU work.
+* Round7's independent CPU training-state audit passed: actual0–500 history,
+  protocol/arguments,900/100 disjoint dream start indices, best/final hashes,
+  optimizer count500/final mean, NumPy RNG/next JAX key, frozen sources/inputs
+  and preserved incumbent. The search session exited0. The serial real
+  supervisor then started with CUDA preflight passed; actual supervisor843089
+  and evaluator843158 were verified live. Four80-game validations are pending,
+  and no reserved result is claimed. Artifact:
+  `doom_reference_round7_training_cpu_audit.json`.
+* Round7's frozen1.15 generation270 control completed80 validation games at
+  **920.03 ±534.36**,77 deaths/3 timeouts, mean95% **[805.16,1038.41]**
+  (50,000 whole-game resamples, seed74180). Exact cohort, actual records and
+  controller/world/source hashes passed CPU verification. The supplied control
+  and both new candidates are still pending; no policy selection or reserved
+  test has occurred. Artifact:
+  `doom_reference_round7_prior_control_validation_cpu_audit.json`.
+* The supplied control subsequently completed80 games at **944.91 ±553.37**,
+  74 deaths/6 timeouts, mean95% **[824.55,1069.56]**. Prior-minus-supplied
+  paired gain **−24.89**,95% **[−159.98,+111.19]**,30 wins/43 losses/7 ties
+  establishes no clear control advantage. Exact cohorts, shared world/protocol
+  and source/controller fingerprints passed CPU checks. The new generation120
+  candidate is running, with the final checkpoint next; no selection or
+  reserved test yet. Artifact:
+  `doom_reference_round7_controls_validation_cpu_audit.json`.
+* New best-generation120 completed80 validation games at **947.80 ±543.20**,
+  75 deaths/5 timeouts, mean95% **[831.36,1068.06]**. Paired gain over supplied
+  **+2.89**,95% **[−113.21,+118.34]**,25 wins/30 losses/25 ties; over prior1.15
+  **+27.78**,95% **[−105.80,+161.58]**. Actual cohorts, shared protocol/world,
+  fingerprints and candidate provenance passed CPU verification. This does
+  not establish a reliable gain. The final checkpoint is running, and full
+  selection/eligible reserved testing remain pending. Artifact:
+  `doom_reference_round7_best_validation_cpu_audit.json`.
+* Final-generation500 completed **875.79 ±544.29**,75 deaths/5 timeouts,
+  mean95% **[759.27,997.34]**; final-minus-supplied **−69.13**,95%
+  **[−211.14,+70.38]**. All four80-game cohorts selected generation120 at
+  **947.80**, with supplied **944.91** as the highest validation control.
+  Both identities and inference were frozen at2026-10-04T00:09:49.485111Z
+  before reserved testing. Independent CPU reconstruction verified actual
+  cohorts, parameter identities, choice/comparator, fingerprints and timing.
+  The selected100-game160000–160099 test is running after CUDA preflight;
+  supplied pairing follows. No1092 result yet. Artifact:
+  `doom_reference_round7_frozen_selection_cpu_audit.json`.
+* The round7 selected generation120 controller completed100 fresh tests at
+  **945.73 ±570.08**,93 deaths/7 timeouts, mean95% **[836.80,1057.28]**
+  (50,000 fixed-policy whole-game resamples, seed74140). Exact160000–160099
+  records, frozen parameters/input/source and selection timing passed CPU
+  verification. The observed mean misses1092; paired supplied control is
+  still running, so gain is not yet known. Artifact:
+  `doom_reference_round7_selected_test100_cpu_audit.json`.
+* A contingent one-factor fitness64 comparison is preregistered from training
+  history and validation evidence, with no new GPU work dispatched or queued.
+  It keeps round7's settings except fitness rollouts16→64 and output path.
+  First/last50 population means912.95/906.09 do not diagnose a cause; less
+  noisy fitness is a hypothesis, and per-rollout variance is unavailable.
+  Protocol reserves validation130180–130259 and eligible paired test170000–
+  170099, using supplied and validation-selected round7 policies as controls.
+  Fresh-seed CPU precheck passed. Launcher correctly reports not-ready while
+  the existing pair/audit is incomplete; four isolated CPU routing fixtures
+  passed both strongest-control cases. Protocol:
+  `doom_reference_round8_fitness64_protocol.json`.
+* Round7's supplied pair completed **922.62 ±562.71** on the same100 seeds,
+  mean95% **[813.64,1033.16]**. Selected-minus-supplied **+23.11**,95%
+  **[−64.56,+109.06]**,41 wins/34 losses/25 ties, establishes no reliable gain
+  (50,000 paired whole-game resamples, seed74140). The complete independent
+  protocol-aware audit verified cohorts, selection/comparator, fingerprints,
+  provenance and timing. Session94377 exited0 and both actual process handles
+  were gone; GPU compute-client query was empty and canonical weights matched.
+  Goal remains active below1092. The preregistered fitness64 launcher then
+  passed CPU readiness with no live previous processes. Artifact:
+  `doom_reference_round7_paired_comparison.json`.
+* The preregistered round8 fitness64 search subsequently started after CUDA
+  matrix multiplication and convolution backward preflight passed. Actual
+  supervisor896023 and trainer896093 were verified live at230/500 generations;
+  best1024-dream score950.0117 occurred at generation60. Measured GPU
+  utilization95%, memory2025MiB. No round8 real evaluation or real gain is
+  claimed. The initial dream mean928.3779 differs from round7's928.0801 by
+  0.2979 despite matching recorded source, inputs, initial parameters, start
+  pools and runtime metadata. The cause is unresolved; this prevents a
+  bitwise-repeatability claim. Artifact:
+  `doom_reference_round8_initial_match_cpu_audit.json`.
