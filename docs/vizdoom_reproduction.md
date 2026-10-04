@@ -677,8 +677,30 @@ gain. The complete protocol-aware CPU audit passed; both evaluation processes
 exited and canonical checkpoints remain intact. A
 64-versus16 fitness-rollout comparison was preregistered from
 training/validation evidence; its readiness check passed after this pair closed.
-The single CUDA search is running at230/500 generations, with no round8 real
-evaluation yet. Its initial1024-dream mean differs by0.2979 despite matching
+The single CUDA search completed500 generations, with best953.3916 at
+generation300 and final CMA mean901.1104. Independent CPU review passed for
+history, optimizer/final weights/RNG, inputs/source and preserved controls;
+the search exited0. Four80-game real validations then started serially after
+fresh-seed/process-exit checks and CUDA preflight. The prior control completed80
+validation games at973.29 ±520.30, mean95%[860.60,1090.03]; actual records, cohort,
+source/controller fingerprints and preserved incumbent passed CPU checks.
+Supplied completed922.10 ±543.40 on the same80 seeds, mean95%[804.71,1042.63].
+Prior-minus-supplied paired gain+51.19 has95%[-56.91,+162.31], establishing no
+reliable advantage. Both complete cohorts and shared world/source passed CPU
+verification. New best-generation300 completed931.41 ±523.98; final-generation500
+completed1016.39 ±560.94 and won validation. Its paired gain over prior is
++43.10,95%[-86.03,+176.65], establishing no reliable improvement. The winner
+and prior comparator were frozen before reserved170000 tests; independent CPU
+reconstruction checked all complete cohorts, identities, world/source and
+timing. The selected100-game test completed **1026.99 ±597.70**,90 deaths/
+10 timeouts, mean95% **[911.33,1145.64]**. CPU verification checked actual
+records, frozen controller/source/world/provenance and preserved canonical
+weights. The observed mean is below1092; the prior's paired100-game test is
+running, with final completion audit pending. No paired improvement is
+claimed. A contingent validation-winner initialization recipe
+is registered from training/validation evidence, with CPU compatibility checks
+passed; it is gated on this pair and audit finishing, and starts no extra GPU job.
+Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.
 Actual1092 performance remains unproven. Dream scores
