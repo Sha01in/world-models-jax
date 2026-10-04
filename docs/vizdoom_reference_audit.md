@@ -992,6 +992,80 @@ unchanged single-game calculation shapes. CUDA preflight passed. Duplicate
 final weights are omitted. Independent complete-validation choice and any
 eligible paired100-test200000–200099 remain pending; no1092 result is claimed.
 
+The unchanged prior controller completed all80 validations at
+**953.56 ±529.86**,76 deaths/4 timeouts, fixed-policy mean95%
+**[839.74,1071.74]**. Independent CPU reconstruction verified registered raw
+records, actual controller/source/input hashes, current package versions,
+shared environment and canonical preservation. Artifact:
+`artifacts/doom_reference_round11_validation_progress_1_cpu_audit.json`.
+The same live supervisor advanced to the public control; generation470 and
+complete validation selection remain pending. This is a control validation
+cohort, not a reserved test or evidence of reaching1092.
+
+The public control completed80 validations at **972.89 ±546.46**,
+75 deaths/5 timeouts, fixed-policy mean95% **[854.02,1094.39]**. Independent
+CPU checks verified both controls' raw records, actual parameter identities,
+source/input hashes, current package versions, shared world/environment and
+canonical preservation. Public minus prior is **+19.33**, paired95%
+**[−94.28,+130.69]**,41 wins/30 losses/9 ties; no reliable advantage is
+established. Artifact:
+`artifacts/doom_reference_round11_validation_progress_2_cpu_audit.json`.
+The same live supervisor advanced to generation470. Complete selection
+remains pending; control validation and intervals containing1092 do not
+establish the target.
+
+The generation470 candidate completed80 validations at **963.89 ±626.80**,
+72 deaths/8 timeouts, mean95% **[828.96,1101.34]**. Candidate minus public is
+**−9.00**, paired95% **[−136.10,+121.86]**. Complete validation retained the
+unchanged public control, so no reserved test was permitted. Independent
+selection/no-test closure reconstructed all240 actual records, raw controller
+identities, source/world fingerprints, initializer provenance and freeze timing;
+200000–200099 remain unused. Separate current-runtime, training-state/hash,
+canonical preservation and actual process/lease checks passed. Session15768
+returned0; both real processes and old training processes exited, with no
+additional GPU work queued. Artifacts:
+`artifacts/doom_reference_round11_validation_closure_cpu_audit.json` and
+`artifacts/doom_reference_round11_completion_cpu_audit.json`. Fixed validation
+selected a different policy but did not establish better real transfer or1092.
+
+Round12 is preregistered as matched temperature1.15 and1.10 controller searches
+from the same public initializer, selected solely by complete round11 validation.
+Both use seed91, sigma0.005,500 generations,pop64,fitness64,1024 held-out
+rollouts and the unchanged fixed-validation trainer. Only temperature and output
+paths differ between the arms. The paper's non-monotonic temperature results
+motivate this comparison;1.10 is our hypothesis. This does not support a pure
+temperature claim from comparisons with older differently initialized or
+validated searches. Six previously failed checkpoint identities are excluded.
+Fresh validation130500–130579 and contingent paired100-test210000–210099
+passed CPU seed reservation. Immutable protocol:
+`artifacts/doom_reference_round12_temperature_pair_protocol.json`, SHA256
+`5b500de0d64169b3329fcda2fa311c252c4d28b6d043d015601d20f79d7fb45a`.
+Serial launcher/readiness and independent auditors remain to be prepared;
+no new GPU job has started or real improvement been established.
+
+The round12 serial launcher and independent arm auditor subsequently passed
+CPU fixtures covering actual trainer argument parsing, a complete synthetic
+public-initializer capsule and corrupt initializer/pool/RNG/history/checkpoint
+rejection, serial CUDA/preflight/CPU-audit ordering, live/incomplete-run rejection,
+audit-failure stopping the next arm and completed-arm recovery without dispatch.
+Synthetic capsules are not experimental results. Syntax/Ruff passed and helper
+sources were frozen. Actual parent/source/runtime/initializer/fresh-cohort/lease
+readiness passed. One supervisor started in session42213, PID1202880; CUDA
+matrix multiplication/convolution backward preflight passed, then first1.15
+trainer1203226 was verified live at7/500 with96% GPU utilization measured.
+Independent live initialization checks verified actual arguments, public
+validation-selected initializer, source/inputs/runtime/start pools and canonical
+preservation at27/500. Initial dream mean928.3779296875 exactly matches
+round8's recorded initial mean; this does not prove raw-trajectory or complete
+training replay, nor real gain. Artifacts:
+`artifacts/doom_reference_round12_training_preparation_cpu.json`,
+`artifacts/doom_reference_round12_training_readiness_cpu_audit.json` and
+`artifacts/doom_reference_round12_tau115_initial_cpu_audit_correction.json`.
+The original initial audit is retained; its generic unresolved-difference note
+was corrected separately because the measured difference is zero. The same
+supervisor will independently audit the finished first arm before launching1.10.
+Real workflow preparation and real survival evidence remain pending.
+
 `src/doom_reference_selection.py` verifies matching validation cohorts and
 distinct policies, prefers controls on ties, and permits reserved testing only
 when an updated candidate wins validation. The CPU completion auditor accepts

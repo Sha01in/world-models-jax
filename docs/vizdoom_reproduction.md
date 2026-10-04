@@ -806,6 +806,52 @@ One real supervisor started in session15768, supervisor1149459/evaluator1149804
 verified live after CUDA preflight. It validates both controls and generation470
 on80 fresh posterior games130420–130499. Complete independent selection and
 any eligible paired100-test200000–200099 remain pending;1092 is unverified.
+The unchanged prior controller then completed80 validations at953.56 ±529.86,
+76 deaths/4 timeouts, mean95%[839.74,1071.74]. Independent CPU raw-record/
+controller/source/input/current-runtime/canonical checks passed. The public
+control is running under the same supervisor, followed by generation470;
+complete selection remains pending. Artifact:
+`artifacts/doom_reference_round11_validation_progress_1_cpu_audit.json`.
+The public control subsequently completed80 validations at972.89 ±546.46,
+75 deaths/5 timeouts, mean95%[854.02,1094.39]. Independent CPU checks passed
+for both controls. Public minus prior+19.33 has paired95%[−94.28,+130.69],
+so no reliable advantage is established. Artifact:
+`artifacts/doom_reference_round11_validation_progress_2_cpu_audit.json`.
+Generation470 is now under the same live supervisor; complete selection
+remains pending. These control validations do not establish1092.
+Generation470 then completed80 validations at963.89 ±626.80,72 deaths/8
+timeouts, mean95%[828.96,1101.34]. Candidate minus public−9.00 has paired95%
+[−136.10,+121.86]. Complete validation retained the unchanged public control.
+Independent selection/no-test closure verified all240 records, frozen source/
+world/parameters, initializer provenance and no200000–200099 consumption.
+Current-runtime/training-state/canonical and actual session/process/lease checks
+passed; session15768 exited0, all related processes exited and no GPU work
+is queued. Artifacts: `artifacts/doom_reference_round11_validation_closure_cpu_audit.json`
+and `artifacts/doom_reference_round11_completion_cpu_audit.json`. The corrected
+validation selected a different policy but did not establish better real transfer
+or1092. The goal remains active.
+Round12 is preregistered as matched1.15/1.10 dream-temperature searches,
+seed91/public initialization, sigma0.005,500 generations,pop64,fitness64 and
+1024 held-out rollouts with the unchanged fixed-validation trainer. Only
+temperature and output paths differ between arms. Six previously failed
+identities are excluded; fresh validation130500–130579 and contingent paired
+100-test210000–210099 passed CPU reservation. Protocol:
+`artifacts/doom_reference_round12_temperature_pair_protocol.json`. Serial
+launcher/readiness and independent audits remain to be prepared; no new GPU
+job has started.1.10 is our hypothesis, not a paper-prescribed setting or claim.
+The serial launcher/independent arm auditor then passed CPU argument parsing,
+complete synthetic public-initializer capsule and corruption/routing/recovery
+fixtures; syntax/Ruff passed and helper sources were frozen. Actual parent/
+source/runtime/initializer/fresh-cohort/lease readiness passed. Session42213,
+supervisor1202880 and first1.15 trainer1203226 were verified live after CUDA
+preflight,7/500 with96% GPU utilization measured. Independent live initial
+checks passed at27/500; initial dream928.3779296875 equals round8's recorded
+initial mean, without proving full-training replay or real gain. Artifacts:
+`artifacts/doom_reference_round12_training_preparation_cpu.json`,
+`artifacts/doom_reference_round12_training_readiness_cpu_audit.json` and
+`artifacts/doom_reference_round12_tau115_initial_cpu_audit_correction.json`.
+The same supervisor will audit the finished first arm before launching1.10;
+real workflow preparation and survival evidence remain pending.
 Round8's initial1024-dream mean differs by0.2979 despite matching
 recorded inputs, source, initial parameters and runtime metadata; the cause
 is unresolved and is documented in the reference audit.
