@@ -1616,3 +1616,126 @@ in [the reproduction audit](vizdoom_reproduction.md).
   the first new mean checkpoint check after generation4. Neither the four-game
   fitness score nor the training holdout proves a fresh100-game1092 mean.
   Both actual supervisor1323498 and trainer1323841 were verified live.
+
+At 2026-10-04T08:49:36.958151+00:00, generation4 improved the same16 training holdouts from
+**768.5625 ±343.2047** to **895.25 ±585.4425** (sample standard deviations).
+The paired mean change was **+126.6875**; a fixed-cohort whole-game bootstrap
+95% interval was **[-86.8750,343.6250]**, with5 improved games,4 worse
+and7 ties. Both complete raw cohorts, seeds, policy fingerprints and the
+current immutable optimizer snapshot were verified on CPU in
+`artifacts/doom_reference_round13_g004_holdout_progress_cpu.json`. This is
+a repeated training holdout used for checkpoint selection, not fresh policy
+validation or a reserved100-game result. Generation5 fitness is running;
+supervisor1323498 and trainer1323841 were independently verified live.
+The1092-step goal remains unproven.
+
+At 2026-10-04T09:24:38.740839+00:00, generation8 scored **888.625 ±583.4805** on the same16
+training holdouts (sample standard deviation), below generation4 **895.25**.
+Generation4 remains best. Generation8 minus baseline768.5625 was
+**+120.0625**, fixed-cohort paired bootstrap95% **[-112.5641,382.6875]**;
+generation8 minus generation4 was **−6.625**, interval
+**[-234.0000,200.1875]**. CPU reconstruction checked all8 candidate
+populations, fitness means/history, mean and best weights, next pending
+population and **560 complete raw training-game records**, with frozen
+source/input fingerprints, in
+`artifacts/doom_reference_round13_g008_holdout_progress_cpu.json`. These are
+repeated training holdouts used for checkpoint selection, not fresh policy
+validation or the reserved100-game target. Generation9 fitness is running;
+the original supervisor1323498 and trainer1323841 were verified live.
+The registered16-generation search continues; fresh validation remains pending.
+
+At 2026-10-04T10:01:38.356194+00:00, generation 12 became the best training checkpoint, scoring
+**966.0625 ±620.9954** on the same 16 training holdouts (sample standard
+deviation), above generation 4 **895.25** and generation 8 **888.625**.
+The paired gain over baseline **768.5625** was **+197.5**, with fixed-cohort
+whole-game bootstrap 95% interval **[-52.0000,467.0625]**. The gain
+over generation 4 was **+70.8125**, interval **[-113.6250,302.8141]**.
+CPU reconstruction verified all 12 populations, raw fitness means/history,
+optimizer mean and best weights, the next pending population and **832 complete
+raw training-game records**, with frozen source/input fingerprints. Evidence:
+`artifacts/doom_reference_round13_g012_holdout_progress_cpu.json`. These are
+repeated training holdouts used for checkpoint selection; they do not establish
+fresh policy performance or the reserved 100-game 1092-step mean. Generation
+13 fitness is running, with supervisor 1323498 and trainer 1323841 verified
+live. The registered 16-generation search continues before fresh validation.
+
+At 2026-10-04T10:33:47.970071+00:00, round13 completed all16 generations and **1104 training games**.
+The independent CPU auditor reconstructed every candidate population, complete
+raw fitness/holdout cohort, final mean and selected best weights, history,
+optimizer and next RNG population. Its current file hashes, registered
+source/inputs/runtime and canonical checkpoints were verified again after
+actual supervisor session52524 exited0 (tool `f6f8db`). Supervisor1323498,
+trainer1323841 and auditor1417088 were absent, repository training/evaluation
+workers had exited, and the exclusive GPU lease was available. Evidence:
+`artifacts/doom_reference_round13_training_cpu_audit.json` and
+`artifacts/doom_reference_round13_training_exit_cpu_review.json`.
+Generation16 is best at **1011.375 ±672.5837** on16 repeated training
+holdouts (sample standard deviation), versus baseline768.5625. Paired gain:
+**+242.8125**, fixed-cohort bootstrap95% **[-11.6891,495.6891]**. These
+training/selection measurements do not establish fresh policy performance.
+Best and final raw weights are identical, so fresh validation has three
+distinct policies: public, prior initializer control and the generation16
+candidate, each on80 new games130580–130659. No validation or reserved
+220000–220099 test has started yet; the1092-step goal remains unproven.
+
+At 2026-10-04T10:39:23.574595+00:00, the prepared fresh real comparison passed readiness (tool
+`0a73c1`) and started in **session2935**, supervisor1417956. CUDA preflight
+passed; actual public-control evaluator1418302 was verified live. The three
+distinct policies each use80 posterior games on the same fresh seeds
+130580–130659. Current measured completion: public control **43/80**, prior control **0/80**,
+and new candidate **0/80**. Global seed
+separation outside independently verified own reports passed, with reserved
+220000–220099 unused. Evidence:
+`artifacts/doom_reference_round13_real_dispatch_cpu_review.json`. The existing
+supervisor must finish all240 validation games and independently audit its
+frozen validation-only choice before any eligible100-game candidate/control
+pair. No winner is frozen yet, no reserved test has begun, and no fresh
+performance claim or1092-step goal completion is established.
+
+At 2026-10-04T10:45:41.253394+00:00, the public control completed all80 fresh validation games
+130580–130659 at **875.85 ±513.6677** (population standard
+deviation), with 78 deaths and 2 timeouts.
+The complete raw cohort, role, policy/world/input/source/runtime metadata and
+reported statistics were checked on CPU. Report:
+`artifacts/doom_reference_round13_val_supplied.json`, SHA256
+`54d6a8ae68ff2ced285e67bcd411db110514cf92d2295f2f96bb1786bbaae718`. Existing session2935 has moved to the unchanged
+prior-control cohort; the new candidate has not yet been evaluated. All three
+complete80-game cohorts remain required before selection. No winner is frozen
+and reserved220000–220099 seeds remain unused; this control result does not
+establish the1092-step target.
+
+At 2026-10-04T10:54:09.828026+00:00, the unchanged priorR8 control completed all80 fresh validation
+games at **926.35 ±492.7647** (population standard deviation),
+with 77 deaths and 3 timeouts. Its complete
+raw records, source/world/runtime/provenance and statistics were independently
+checked on CPU; public control remains875.85 ±513.6677 on the same seeds.
+Prior report: `artifacts/doom_reference_round13_val_prior_initializer.json`,
+SHA256 `1166d07da2fd2c07e2df41a465fc1a87b9c10b94e8fe662c0e68cc81e1266e2c`. Existing session2935 is now evaluating
+the generation16 candidate. Its complete80-game cohort is still required
+before any winner/control is frozen; reserved220000–220099 remains unused.
+
+Round 13 completed all 240 fresh validation games, with each policy evaluated
+on the same 80 seeds, 130580–130659:
+
+| Policy | Mean steps | Population standard deviation | Deaths / timeouts |
+| --- | ---: | ---: | ---: |
+| Public controller | 875.85 | 513.67 | 78 / 2 |
+| Prior round 8 controller | 926.35 | 492.76 | 77 / 3 |
+| New round 13 controller | 885.29 | 562.21 | 76 / 4 |
+
+The prior controller was retained using complete validation only. The new
+controller's paired mean change was **−41.06 steps**, with a whole-game
+bootstrap 95% interval of **[−130.30, +47.24]**. This interval conditions on
+the fixed policies and excludes training and sequential selection uncertainty.
+The training-holdout improvement did not establish fresh validation improvement.
+No reserved test was run; seeds 220000–220099 remain unused, and the paper's
+1092-step target remains unmet.
+
+The independent CPU result audit verified all raw validation records, current
+source/input/runtime fingerprints, checkpoint eligibility and the frozen choice:
+`artifacts/doom_reference_round13_real_result_cpu_audit.json`. The supervisor
+exited successfully; its recorded processes and repository workers were absent
+and the GPU lease was available at the precommit check. This experiment trained
+the controller directly on real simulator survival using an imported public
+VAE/RNN, which differs from the paper's dream-only controller training and does
+not establish reproduction of our own world-model training.
