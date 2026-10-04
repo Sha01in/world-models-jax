@@ -1493,3 +1493,78 @@ in [the reproduction audit](vizdoom_reproduction.md).
   `doom_reference_round12_tau115_initial_cpu_audit_correction.json`.
   The same supervisor will audit the finished first arm before launching1.10;
   real workflow preparation and real survival evidence remain pending.
+* Round12's temperature 1.15 arm completed all 500 generations. Its best
+  held-out dream score was **948.2070 at generation 70**. The independent CPU
+  audit verified best/final weights, all history rows, optimizer count 500,
+  RNG state, source/inputs and canonical preservation. The same supervisor
+  then started the 1.10 arm after CUDA preflight; both processes were verified
+  live at generation 23 on 2026-10-04T06:18:11Z. Its initializer, start pools,
+  random-stream metadata and calculation shapes match the first arm.
+* The two-arm real-evaluation workflow is now prepared and frozen in
+  `doom_reference_round12_real_workflow_preparation_cpu.json`. Twelve isolated
+  CPU fixtures passed, including independent selection before reserved tests,
+  rejection blocking tests, retained-control closure and full paired analysis.
+  Inference/recovery paths match the previous evaluator. No real evaluations
+  have started; both completed searches and actual training exit must precede
+  fresh readiness checks. Dream scores do not establish the 1092-step target.
+* Both round12 searches are now complete. The 1.10 arm's best held-out dream
+  score was **1076.3115 at generation 310**. Both independent training audits
+  passed, and actual session 42213 exited 0 (tool chunk `515ec3`). Current
+  source/runtime/checkpoint/RNG/canonical and process/lease checks passed in
+  `doom_reference_round12_training_completion_cpu_audit.json`.
+* Fresh real-dispatch readiness passed. Raw identity checks showed the 1.15
+  final policy exactly duplicates the prior control; its generation-70 best
+  is distinct. The final registered comparison has **five policies / 400
+  validation games**, retaining both controls and three distinct candidates.
+  One real supervisor started in session 16340, PID 1253545. CUDA preflight
+  passed; evaluator 1253615 was verified live on the public control at 1/80
+  games on 2026-10-04T06:43Z. Selection and any eligible reserved pair remain
+  pending. Artifacts: `doom_reference_round12_real_dispatch_readiness_cpu.json`
+  and `doom_reference_round12_registered_validation_cases_cpu.json`.
+* Round12's public control completed all 80 validation games at
+  **957.56 ±599.62**, with 73 deaths / 7 timeouts and a fixed-policy 95%
+  mean interval of **[828.66,1092.14]**. Independent CPU reconstruction verified
+  every raw record, controller/source/input fingerprints, current runtime,
+  matching environment and canonical preservation. Artifact:
+  `doom_reference_round12_validation_progress_1_cpu_audit.json`. The same
+  supervisor is evaluating the prior local controller (evaluator 1261348
+  verified live). All five cohorts must finish before selection. This unchanged
+  control validation and its interval do not establish a reserved 1092-step result.
+* Round12's prior local controller completed 80 validation games at
+  **913.01 ±502.18**, 78 deaths / 2 timeouts, fixed-policy mean95%
+  **[803.20,1024.40]**. Prior minus public is **−44.55**, paired95%
+  **[−171.36,+84.65]**, with 25 wins / 42 losses / 13 ties; no reliable
+  improvement is established. Independent CPU raw-record, actual control
+  identity, source/input/runtime/shared-environment and canonical checks
+  passed for both controls in `doom_reference_round12_validation_progress_2_cpu_audit.json`.
+  The same supervisor advanced to the distinct 1.15 generation-70 candidate,
+  evaluator 1271193 verified live. Three candidate cohorts remain; selection
+  and any eligible reserved paired100 remain pending.
+* Round12's distinct temperature 1.15 generation-70 candidate completed 80
+  validation games at **926.31 ±579.07**, 75 deaths / 5 timeouts, mean95%
+  **[801.87,1055.04]**. Candidate minus public is **−31.25**, paired95%
+  **[−141.41,+77.48]**, with 33 wins / 30 losses / 17 ties. Independent
+  raw-record, policy identity/generation/temperature, source/input/runtime/
+  shared-environment and canonical checks passed for all three complete
+  cohorts. Artifact: `doom_reference_round12_validation_progress_3_cpu_audit.json`.
+  The same supervisor advanced to temperature 1.10 best, evaluator 1281065
+  verified live. Both 1.10 cohorts and complete selection remain pending;
+  the 1.15 candidate did not outscore public, and no reserved test has started.
+* Round12 completed all **400 validation games** on seeds 130500–130579.
+  Temperature 1.10 best scored **904.69 ±524.83**, with 78 deaths / 2
+  timeouts; its difference from public was **−52.88**, paired95%
+  **[−181.60,+75.13]**. The 1.10 final checkpoint scored **922.06 ±522.69**,
+  with 76 deaths / 4 timeouts; its difference was **−35.50**, paired95%
+  **[−174.74,+103.65]**. Complete validation-only selection retained the
+  unchanged public control at **957.56 ±599.62**. All three new candidates
+  scored below it; reserved seeds **210000–210099 remain unused**.
+* Independent selection, no-test closure and final CPU audits verified all
+  raw records, policy provenance, source/inputs/runtime, training checkpoints,
+  optimizer/RNG state and canonical preservation. Real session 16340 exited
+  0 (tool chunk `3c3cbf`); the 2026-10-04T07:47:48Z completion review found
+  all experiment processes absent, the GPU lease available and no further
+  GPU work queued. Artifacts: `doom_reference_round12_frozen_selection_cpu_audit.json`,
+  `doom_reference_round12_validation_closure_cpu_audit.json` and
+  `doom_reference_round12_completion_cpu_audit.json`. The 1092-step target
+  remains unmet. This comparison used an imported public world model;
+  the preserved canonical own-world result remains **840.06 ±524.48**.
